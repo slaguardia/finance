@@ -38,7 +38,8 @@ is stored and backed up. Every change goes in an activity log.
 - **Budget:** income and recurring payments, all editable in place.
 - **Debt:** each loan's balance, rate and status, the payoff chart, and the
   interest accruing each month.
-- **Documents:** the catalog, with drag-and-drop upload.
+- **Documents:** the catalog, with drag-and-drop upload (several files at once).
+  Anything not yet applied shows "Not filed yet" until the agent reads it.
 - **Log:** every change, plus the nightly backups and a "back up now" button.
 
 Net worth is fresh asset balances minus fresh card balances. A balance older

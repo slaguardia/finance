@@ -19,6 +19,11 @@ only in the running container's `/data` volume and its backups.
 5. Report in a few lines: what it was, which values changed, anything needing
    attention (a due date, a price increase, an odd charge).
 
+Files the owner uploaded through the Documents page arrive as catalog rows with
+an empty `applied_to` (shown as "Not filed yet"). To file them, fetch each with
+`GET /api/documents/:id/file`, then do steps 1 and 3–5 on that row (fill in
+type, issuer and doc_date with `PATCH`).
+
 `GET /api/overview` → `gaps` is the check-in list.
 
 ## Changing the app
