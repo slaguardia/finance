@@ -143,6 +143,8 @@ main.cap-main { padding: 30px 40px 56px; }
 .fn-srow small { display: block; color: var(--fg-faint); font-size: 12px; font-weight: 400; margin-top: 1px; }
 .fn-stmt { display: inline-grid; place-items: center; min-width: 30px; height: 26px; padding: 0 7px; border-radius: 8px; font-family: var(--font-num); font-weight: 700; font-size: 12px; text-decoration: none; }
 .fn-stmt + .fn-stmt { margin-left: 3px; }
+.fn-stmt .fn-icon { display: block; }
+.fn-stmt-nofile { opacity: 0.5; }
 a.fn-stmt:hover { filter: brightness(1.25); }
 .fn-stmt-none { color: var(--fg-faint); opacity: 0.45; font-size: 18px; line-height: 1; }
 .fn-export { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--hairline); color: var(--fg-muted); font-size: 14px; }

@@ -33,6 +33,7 @@ export const DocumentsView = (): View => ({
 });
 
 const isStatement = (d: Doc) => /statement/i.test(d.type ?? "");
+const tip = (d: Doc) => `${day(d.doc_date ?? d.added_at)} · ${d.description ?? d.type ?? "Statement"}`;
 const monthOf = (d: Doc) => (d.doc_date ?? d.added_at).slice(0, 7);
 
 /**
@@ -60,8 +61,8 @@ function statementGrid(docs: Doc[], accounts: Account[]): HTMLElement {
   const cells = (ds: Doc[]) => months.map((m) => {
     const here = ds.filter((d) => monthOf(d) === m);
     return h("td", {}, ...(here.length ? here.map((d) => d.file_name
-      ? h("a", { class: "fn-stmt", href: `/api/documents/${d.id}/file`, target: "_blank", rel: "noopener", title: d.description ?? "" }, String(Number((d.doc_date ?? d.added_at).slice(8, 10))))
-      : h("span", { class: "fn-stmt", title: d.description ?? "" }, String(Number((d.doc_date ?? d.added_at).slice(8, 10)))))
+      ? h("a", { class: "fn-stmt", href: `/api/documents/${d.id}/file`, target: "_blank", rel: "noopener", title: tip(d), "aria-label": tip(d) }, icon("file", 15))
+      : h("span", { class: "fn-stmt fn-stmt-nofile", title: `${tip(d)} (no file stored)` }, icon("file", 15)))
       : [h("span", { class: "fn-stmt-none" }, "·")]));
   });
   const head = h("tr", {}, h("th", {}, "Account"), ...months.map((m) => h("th", {}, shortMonth(m))));
@@ -77,7 +78,7 @@ function statementGrid(docs: Doc[], accounts: Account[]): HTMLElement {
     h("td", {}, h("div", { class: "fn-srow" }, h("span", { class: "fn-chip" }, icon("file", 16)), h("div", {}, "Other statements"))), ...cells(other)));
 
   return section("Statements by month",
-    h("p", { class: "fn-muted fn-note" }, "Each number is the statement's date; click it to open the file. A dot means no statement on file for that month."),
+    h("p", { class: "fn-muted fn-note" }, "Each icon is a statement on file: hover for its date, click to open it. A dot means nothing on file for that month."),
     h("div", { class: "fn-scroll" }, h("table", { class: "fn-sgrid" }, h("thead", {}, head), h("tbody", {}, ...body))),
     exportForm(docs));
 }
