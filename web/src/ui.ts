@@ -70,14 +70,14 @@ export function removeBtn(what: string, act: () => Promise<unknown>): HTMLElemen
 }
 
 /**
- * A floating tooltip for small targets like the statement grid's icons. It lives on <body>, so a scrolling table
- * can't clip it. Hover or keyboard focus shows it. On a touch screen the first tap shows it (with an "Open file"
+ * A floating tooltip for small targets like the statement grid's icons and chart columns. It lives on <body>, so a
+ * scrolling table can't clip it, and sits above `anchor` (default: the target). Hover or keyboard focus shows it. On a touch screen the first tap shows it (with an "Open file"
  * link when the target is a link) and a tap anywhere else closes it.
  */
 let tipBox: HTMLElement | null = null, tipOwner: Element | null = null;
 const hideTip = () => { tipBox?.remove(); tipOwner?.removeAttribute("aria-describedby"); tipBox = tipOwner = null; };
 
-export function withTip<T extends HTMLElement>(target: T, content: (touch: boolean) => (Node | string | null)[]): T {
+export function withTip<T extends Element>(target: T, content: (touch: boolean) => (Node | string | null)[], anchor: Element = target): T {
   if (!document.body.dataset.fnTips) {
     document.body.dataset.fnTips = "1";
     document.addEventListener("pointerdown", (e) => {
@@ -96,12 +96,12 @@ export function withTip<T extends HTMLElement>(target: T, content: (touch: boole
     document.body.append(tipBox);
     tipOwner = target;
     target.setAttribute("aria-describedby", "fn-tip");
-    const r = target.getBoundingClientRect(), w = tipBox.offsetWidth, ht = tipBox.offsetHeight, vw = document.documentElement.clientWidth;
+    const r = anchor.getBoundingClientRect(), w = tipBox.offsetWidth, ht = tipBox.offsetHeight, vw = document.documentElement.clientWidth;
     tipBox.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - w / 2, vw - w - 8))}px`;
     tipBox.style.top = `${r.top - ht - 8 >= 8 ? r.top - ht - 8 : r.bottom + 8}px`;
   };
-  target.addEventListener("pointerenter", (e) => { touch = e.pointerType !== "mouse"; if (!touch) show(); });
-  target.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse" && tipOwner === target) hideTip(); });
+  target.addEventListener("pointerenter", (e: Event) => { if (!(e instanceof PointerEvent)) return; touch = e.pointerType !== "mouse"; if (!touch) show(); });
+  target.addEventListener("pointerleave", (e: Event) => { if (!(e instanceof PointerEvent)) return; if (e.pointerType === "mouse" && tipOwner === target) hideTip(); });
   target.addEventListener("focus", () => { if (!touch) show(); });
   target.addEventListener("blur", () => { if (!touch && tipOwner === target) hideTip(); });
   target.addEventListener("click", (e) => { if (touch && tipOwner !== target) { e.preventDefault(); show(); } });

@@ -92,10 +92,15 @@ main.cap-main { padding: 30px 40px 56px; }
 .fn-base { stroke: var(--border); stroke-width: 1; }
 .fn-axis { fill: var(--fg-faint); font-size: 11.5px; font-weight: 600; }
 .fn-line { fill: none; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
-.fn-dot { stroke: var(--card); stroke-width: 3; }
+.fn-dot { stroke: var(--card); stroke-width: 3; transform-box: fill-box; transform-origin: center; transition: transform var(--dur-fast) var(--ease); }
 .fn-bar { transition: opacity var(--dur-fast) var(--ease); }
-.fn-chart:hover .fn-bar { opacity: 0.55; }
-.fn-chart .fn-bar:hover, .fn-dot:hover { opacity: 1; }
+.fn-hit { outline: none; cursor: default; }
+.fn-band { fill: transparent; }
+.fn-cross { stroke: var(--fg-faint); stroke-width: 1; stroke-dasharray: 3 4; opacity: 0; }
+.fn-hit:is(:hover, :focus-visible) .fn-cross { opacity: 0.8; }
+.fn-hit:is(:hover, :focus-visible) .fn-dot { transform: scale(1.45); }
+.fn-hit:is(:hover, :focus-visible) .fn-band { fill: color-mix(in srgb, var(--fg) 4%, transparent); }
+.fn-chart:has(.fn-hit:is(:hover, :focus-visible)) .fn-hit:not(:hover, :focus-visible) .fn-bar { opacity: 0.45; }
 .fn-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; font-size: 13px; color: var(--fg-muted); }
 .fn-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; }
 
@@ -249,6 +254,14 @@ td .fn-input { width: 100%; max-width: 14em; padding: 5px 8px; }
 .fn-tip dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .fn-tip-note { margin: 9px 0 0; padding-top: 8px; border-top: 1px solid var(--hairline); color: var(--fg-muted); font-size: 12px;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.fn-tip-value { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 800; margin-top: 4px; }
+.fn-tip-value + .fn-tip-sub { margin-top: 0; }
+.fn-tip-sub.fn-up { color: var(--yes); }
+.fn-tip-sub.fn-down { color: var(--no); }
+.fn-tip-parts { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 5px 9px; margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--hairline); }
+.fn-tip-parts i { width: 10px; height: 10px; border-radius: 50%; }
+.fn-tip-parts span { color: var(--fg-muted); }
+.fn-tip-parts b { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
 .fn-tip-foot { margin-top: 8px; color: var(--fg-faint); font-size: 12px; }
 .fn-tip-warn { color: var(--maybe); }
 .fn-tip-acct + .fn-tip-acct { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--hairline); }

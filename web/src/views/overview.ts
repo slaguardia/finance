@@ -1,7 +1,7 @@
 import type { View } from "@brainbot/web-toolkit/shell";
 import { api } from "../api";
 import { day, h, month, pct, shortMonth, signed, usd0, usd2 } from "../fmt";
-import { legend, lineChart, stackedBars } from "../chart";
+import { legend, lineChart, stackedBars, type StackGroup } from "../chart";
 import { icon } from "../icons";
 import { grid2, grid3, list, muted, progress, section, splitBar, tile, tiles } from "../ui";
 
@@ -13,7 +13,8 @@ const today = () => new Date().toLocaleDateString("en-US", { weekday: "long", mo
 
 export const OverviewView = (): View => ({
   async mount(el) {
-    const [o, cards] = await Promise.all([api.overview(), api.balances("card")]);
+    const [o, cards, accounts] = await Promise.all([api.overview(), api.balances("card"), api.accounts()]);
+    const nameOf = new Map(accounts.map((a) => [a.id, a.name]));
     const nw = o.net_worth, debt = o.debt, b = o.budget;
     const ds = o.debt_series, prev = ds[ds.length - 2];
     const lenders = [...new Set(ds.flatMap((p) => Object.keys(p.by)))];
@@ -52,8 +53,8 @@ export const OverviewView = (): View => ({
         section("Net worth",
           o.net_worth_series.length
             ? lineChart(o.net_worth_series.map((p) => ({
-                label: shortMonth(p.as_of), value: p.value, t: Date.parse(p.as_of),
-                tip: `${month(p.as_of)}: ${usd2(p.value)}${p.missing.length ? `\nNot counted (stale): ${p.missing.join(", ")}` : ""}`,
+                label: shortMonth(p.as_of), title: month(p.as_of), value: p.value, t: Date.parse(p.as_of),
+                notes: p.missing.length ? [`Not counted (no fresh balance): ${p.missing.map((id) => nameOf.get(id) ?? id).join(", ")}`] : [],
               })))
             : muted("Needs a balance for every asset account on the same date.")),
         section("Paying down debt",
@@ -64,7 +65,7 @@ export const OverviewView = (): View => ({
           h("a", { class: "fn-more", href: "#debt" }, "See every loan →")),
       ),
       section("Credit card balances",
-        cardGroups.groups.length ? stackedBars(cardGroups.groups, cardGroups.keys, { width: 1400, height: 240 }) : muted("No card balances yet."),
+        cardGroups.groups.length ? stackedBars(cardGroups.groups, cardGroups.keys, { width: 1400, height: 240, lowerIsBetter: true, compare: false }) : muted("No card balances yet."),
         legend(cardGroups.keys)),
       grid3(
         section(h("span", {}, icon("calendar", 16), " Coming up"), list(o.due_soon.map((d) =>
@@ -86,10 +87,11 @@ function jump(btn: HTMLElement): HTMLElement {
 
 function groupCards(rows: { as_of: string; name: string; balance: number; note?: string | null }[]) {
   const keys = [...new Set(rows.map((r) => r.name))];
-  const by = new Map<string, { label: string; parts: Record<string, number>; tip?: string }>();
+  const by = new Map<string, StackGroup & { notes: string[] }>();
   for (const r of rows) {
-    const g = by.get(r.as_of) ?? { label: shortMonth(r.as_of), parts: {}, tip: r.note ?? undefined };
+    const g = by.get(r.as_of) ?? { label: shortMonth(r.as_of), title: day(r.as_of), parts: {}, notes: [] };
     g.parts[r.name] = r.balance;
+    if (r.note) g.notes.push(`${r.name}: ${r.note}`);
     by.set(r.as_of, g);
   }
   return { keys, groups: [...by.values()] };

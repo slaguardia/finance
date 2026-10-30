@@ -139,9 +139,9 @@ export const AccountView = (): View => ({
     el.replaceChildren(
       pageHead(a.name, h("span", {}, `${KIND_LABEL[a.kind] ?? a.kind}${a.institution ? ` · ${a.institution}` : ""} · `, h("a", { href: "#accounts" }, "all accounts"))),
       section("History", pts.length ? lineChart(pts.map((b) => ({
-        label: shortMonth(b.as_of), value: b.balance, t: Date.parse(b.as_of),
-        tip: `${day(b.as_of)}: ${usd2(b.balance)}${b.note ? `\n${b.note}` : ""}`,
-      })), { width: 1400, height: 260 }) : muted("No balances yet.")),
+        label: shortMonth(b.as_of), title: day(b.as_of), value: b.balance, t: Date.parse(b.as_of),
+        notes: [b.rate != null ? `Rate ${rate(b.rate)}` : "", b.document ? `From ${b.document}` : "", b.note ?? ""].filter(Boolean),
+      })), { width: 1400, height: 260, lowerIsBetter: a.kind === "loan" || a.kind === "card" }) : muted("No balances yet.")),
       ...(breakdown ? [breakdownCard(breakdown)] : []),
       section("Balances", table({
         columns: ["As of", "Balance", "Rate", "Note", "From document", ""],

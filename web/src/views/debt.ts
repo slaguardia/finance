@@ -21,7 +21,7 @@ export const DebtView = (): View => ({
           icon: "check", tone: "yes", sub: first ? `since each lender's first statement` : undefined, trend: "up" }),
         tile({ label: "Interest a month", value: usd2(monthly), icon: "clock", tone: "maybe", sub: "balance × rate ÷ 12" }),
       ),
-      section("Debt by lender", stackedBars(ds.map((p) => ({ label: shortMonth(p.as_of), parts: p.by, tip: `Total ${usd0(p.total)}` })), keys, { width: 1400, height: 260 }), legend(keys)),
+      section("Debt by lender", stackedBars(ds.map((p) => ({ label: shortMonth(p.as_of), title: day(p.as_of), parts: p.by })), keys, { width: 1400, height: 260, lowerIsBetter: true }), legend(keys)),
       section("Loans", table({
         columns: ["Loan", "Lender", "Balance", "Rate", "As of", "Status"],
         rows: loans.map((a) => [
