@@ -10,6 +10,7 @@ import { DebtView } from "./views/debt";
 import { DocumentsView } from "./views/documents";
 import { LogView } from "./views/log";
 import { startLive } from "./live";
+import { icon } from "./icons";
 
 const routes: Record<string, () => View> = {
   "": OverviewView,
@@ -34,6 +35,25 @@ mountApp(routes, {
   ],
 });
 registerSW();
+decorateChrome();
+
+// Icons on the nav pills + the app icon beside the wordmark, and keep "Overview"
+// lit on the home route (the shell doesn't mark the "" route as current).
+function decorateChrome(): void {
+  const icons: Record<string, string> = { "#": "home", "#accounts": "wallet", "#budget": "pie", "#debt": "down", "#documents": "file", "#log": "clock" };
+  for (const a of Array.from(document.querySelectorAll<HTMLAnchorElement>(".cap-nav a"))) {
+    a.prepend(icon(icons[a.getAttribute("href") ?? ""] ?? "home", 18));
+  }
+  const brand = document.querySelector(".brand");
+  const logo = document.createElement("img");
+  logo.src = "/icon-192.png";
+  logo.alt = "";
+  brand?.prepend(logo);
+  const home = document.querySelector<HTMLAnchorElement>('.cap-nav a[href="#"]');
+  const sync = () => home?.classList.toggle("fn-home-on", location.hash.replace(/^#/, "") === "");
+  window.addEventListener("hashchange", sync);
+  sync();
+}
 
 // Same longest-prefix match as the shell, so a live refresh re-renders the view on screen.
 startLive(async () => {

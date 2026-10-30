@@ -16,10 +16,10 @@ export const DebtView = (): View => ({
     el.replaceChildren(
       pageHead("Debt", "Each loan's history is on its account page: click its name to correct a balance or rate."),
       tiles(
-        tile("Debt left", usd0(last?.total), last ? `as of ${day(last.as_of)}` : undefined),
-        tile("Paid down", last ? usd0(keys.reduce((s, k) => s + (ds.find((p) => k in p.by)!.by[k] - (last.by[k] ?? 0)), 0)) : "—",
-          first ? `since each lender's first statement (from ${day(first.as_of)})` : undefined, "up"),
-        tile("Interest accruing / month", usd2(monthly), "balance × rate ÷ 12"),
+        tile({ label: "Debt left", value: usd0(last?.total), icon: "down", tone: "no", sub: last ? `as of ${day(last.as_of)}` : undefined }),
+        tile({ label: "Paid down so far", value: last ? usd0(keys.reduce((s, k) => s + (ds.find((p) => k in p.by)!.by[k] - (last.by[k] ?? 0)), 0)) : "—",
+          icon: "check", tone: "yes", sub: first ? `since each lender's first statement` : undefined, trend: "up" }),
+        tile({ label: "Interest a month", value: usd2(monthly), icon: "clock", tone: "maybe", sub: "balance × rate ÷ 12" }),
       ),
       section("Debt by lender", stackedBars(ds.map((p) => ({ label: shortMonth(p.as_of), parts: p.by, tip: `Total ${usd0(p.total)}` })), keys, { width: 1400, height: 260 }), legend(keys)),
       section("Loans", table({

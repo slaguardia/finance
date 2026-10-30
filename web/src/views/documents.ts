@@ -4,6 +4,7 @@ import { api, send, type Doc } from "../api";
 import { day, h, todayIso, usd2 } from "../fmt";
 import { editable, parseMoney } from "../edit";
 import { pageHead, removeBtn, section } from "../ui";
+import { icon } from "../icons";
 
 export const DocumentsView = (): View => ({
   async mount(el) {
@@ -46,12 +47,13 @@ function uploadForm(): HTMLElement {
   date.value = todayIso();
   const desc = h("input", { class: "fn-input", placeholder: "Description" });
   const amount = h("input", { class: "fn-input", inputmode: "decimal", placeholder: "Amount (optional)" });
-  const drop = h("div", { class: "fn-drop" }, "Drop a file here or choose one ", file);
+  const hint = h("span", {}, "Drop a statement, bill or form here, or choose a file");
+  const drop = h("div", { class: "fn-drop" }, icon("upload", 22), hint, file);
 
   const pickFile = (f: File | undefined) => {
     if (!f) return;
     if (!desc.value) desc.value = f.name.replace(/\.[^.]+$/, "");
-    drop.firstChild!.textContent = `${f.name} · `;
+    hint.textContent = f.name;
   };
   file.addEventListener("change", () => pickFile(file.files?.[0]));
   drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("fn-drop-on"); });

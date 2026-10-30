@@ -2,40 +2,52 @@ import type { View } from "@brainbot/web-toolkit/shell";
 import { api } from "../api";
 import { day, h, month, pct, shortMonth, signed, usd0, usd2 } from "../fmt";
 import { legend, lineChart, stackedBars } from "../chart";
-import { grid2, list, muted, pageHead, section, tile, tiles } from "../ui";
+import { icon } from "../icons";
+import { grid2, grid3, list, muted, progress, section, splitBar, tile, tiles } from "../ui";
+
+const greeting = () => {
+  const hr = new Date().getHours();
+  return hr < 5 ? "Up late" : hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
+};
+const today = () => new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
 export const OverviewView = (): View => ({
   async mount(el) {
     const [o, cards] = await Promise.all([api.overview(), api.balances("card")]);
     const nw = o.net_worth, debt = o.debt, b = o.budget;
+    const ds = o.debt_series, prev = ds[ds.length - 2];
+    const lenders = [...new Set(ds.flatMap((p) => Object.keys(p.by)))];
 
     // Debt change by lender, so a newly added loan doesn't read as the debt going up.
-    const ds = o.debt_series, prev = ds[ds.length - 2];
     const lenderMoves = debt && prev
       ? Object.entries(debt.by).map(([k, v]) => [k, v - (prev.by[k] ?? 0), k in prev.by] as const).filter(([, d]) => Math.abs(d) >= 1)
       : [];
 
     const takeaway = nw
-      ? `Net worth is ${usd0(nw.value)}${nw.change != null ? `, ${signed(nw.change)} since ${month(nw.prev_as_of!)}` : ""}. ` +
-        `Fixed bills take ${pct(b.fixed_share)} of take-home, leaving ${usd0(b.left_over)} a month.` +
-        (o.gaps.length ? ` ${o.gaps.length} thing${o.gaps.length > 1 ? "s" : ""} need${o.gaps.length > 1 ? "" : "s"} updating.` : "")
-      : "No balances yet — log some on the Accounts page or send Claude a statement.";
+      ? `You're worth ${usd0(nw.value)}${nw.change != null ? `, ${nw.change >= 0 ? "up" : "down"} ${usd0(Math.abs(nw.change))} since ${month(nw.prev_as_of!)}` : ""}. ` +
+        `Fixed bills take ${pct(b.fixed_share)} of take-home, so ${usd0(b.left_over)} a month is yours to save or spend.`
+      : "No balances yet. Log some on the Accounts page or send Claude a statement.";
 
     const cardGroups = groupCards(cards);
 
     el.replaceChildren(
-      pageHead("Overview", takeaway),
+      h("header", { class: "fn-hello" },
+        h("div", {}, h("p", { class: "fn-date" }, today()), h("h1", {}, `${greeting()} 👋`), h("p", { class: "fn-lede" }, takeaway)),
+        o.gaps.length ? jump(h("button", { class: "fn-pill fn-pill-maybe" }, icon("bell", 15), `${o.gaps.length} to update`)) : h("span", { class: "fn-pill fn-pill-yes" }, icon("check", 15), "All up to date")),
       tiles(
-        tile("Net worth", nw ? usd0(nw.value) : "—",
-          nw ? (nw.change != null ? `${signed(nw.change)} since ${month(nw.prev_as_of!)}` : `as of ${day(nw.as_of)}`) : undefined,
-          nw?.change != null ? (nw.change >= 0 ? "up" : "down") : undefined),
-        tile("Debt left", debt ? usd0(debt.value) : "—",
-          debt ? h("span", {}, ...lenderMoves.map(([k, d, existed], i) =>
-            h("span", {}, i ? " · " : "", existed ? `${k} ${signed(d)}` : `${k} added`)), lenderMoves.length ? "" : `as of ${day(debt.as_of)}`) : undefined),
-        tile("Take-home / month", usd0(b.take_home), h("a", { href: "#budget" }, "edit income")),
-        tile("Fixed bills / month", usd0(b.fixed), `${pct(b.fixed_share)} of take-home`),
-        tile("Left after fixed bills", usd0(b.left_over), "per month", b.left_over >= 0 ? "up" : "down"),
+        tile({ label: "Net worth", value: nw ? usd0(nw.value) : "—", icon: "coins", tone: "accent",
+          sub: nw ? (nw.change != null ? `${signed(nw.change)} since ${month(nw.prev_as_of!)}` : `as of ${day(nw.as_of)}`) : undefined,
+          trend: nw?.change != null ? (nw.change >= 0 ? "up" : "down") : undefined }),
+        tile({ label: "Debt left", value: debt ? usd0(debt.value) : "—", icon: "down", tone: "no",
+          sub: debt ? (lenderMoves.map(([k, d, existed]) => (existed ? `${k} ${signed(d)}` : `${k} added`)).join(" · ") || `as of ${day(debt.as_of)}`) : undefined }),
+        tile({ label: "Take-home a month", value: usd0(b.take_home), icon: "wallet", tone: "link", sub: h("a", { href: "#budget" }, "Edit income") }),
+        tile({ label: "Left after bills", value: usd0(b.left_over), icon: "piggy", tone: "yes", sub: "every month", trend: b.left_over >= 0 ? "up" : "down" }),
       ),
+      section("Where your take-home goes",
+        splitBar([
+          { label: "Fixed bills", value: b.fixed, tone: "maybe", text: usd0(b.fixed) },
+          { label: "Left over", value: b.left_over, tone: "yes", text: usd0(b.left_over) },
+        ])),
       grid2(
         section("Net worth",
           o.net_worth_series.length
@@ -44,25 +56,33 @@ export const OverviewView = (): View => ({
                 tip: `${month(p.as_of)}: ${usd2(p.value)}${p.missing.length ? `\nNot counted (stale): ${p.missing.join(", ")}` : ""}`,
               })))
             : muted("Needs a balance for every asset account on the same date.")),
-        section("Debt by lender",
-          stackedBars(ds.map((p) => ({ label: shortMonth(p.as_of), parts: p.by })), lenders(ds)),
-          legend(lenders(ds))),
+        section("Paying down debt",
+          ...lenders.map((k) => {
+            const first = ds.find((p) => k in p.by)!.by[k], now = debt?.by[k] ?? 0;
+            return progress(k, first - now, first, now === 0 ? "Paid off 🎉" : `${usd0(now)} left of ${usd0(first)}`, now === 0 ? "yes" : "link");
+          }),
+          h("a", { class: "fn-more", href: "#debt" }, "See every loan →")),
       ),
       section("Credit card balances",
-        cardGroups.groups.length ? stackedBars(cardGroups.groups, cardGroups.keys, { width: 1400, height: 260 }) : muted("No card balances yet."),
+        cardGroups.groups.length ? stackedBars(cardGroups.groups, cardGroups.keys, { width: 1400, height: 240 }) : muted("No card balances yet."),
         legend(cardGroups.keys)),
-      h("div", { class: "fn-grid3" },
-        section("Due in the next two weeks", list(o.due_soon.map((d) =>
-          h("span", {}, h("b", {}, d.name), ` ${usd2(d.amount)} · ${day(d.due)}`)), "Nothing due.")),
-        section("Needs updating", list(o.gaps, "All caught up.")),
-        section("Recent changes", list(o.activity.slice(0, 8).map((a) =>
-          h("span", {}, a.summary, " ", muted(day(a.at)))), "No changes yet."), h("a", { href: "#log" }, "full log →")),
+      grid3(
+        section(h("span", {}, icon("calendar", 16), " Coming up"), list(o.due_soon.map((d) =>
+          h("span", { class: "fn-li" }, h("span", {}, d.name, h("small", {}, day(d.due))), h("b", { class: "fn-num" }, usd2(d.amount)))), "Nothing due in the next two weeks.")),
+        h("div", { id: "todo" }, section(h("span", {}, icon("bell", 16), " To update"), list(o.gaps.map((g) => g.replace(/\d{4}-\d{2}-\d{2}/, (d) => day(d))), "Everything's up to date."))),
+        section(h("span", {}, icon("clock", 16), " Recent changes"), list(o.activity.slice(0, 6).map((a) =>
+          h("span", { class: "fn-li" }, h("span", {}, a.summary, h("small", {}, day(a.at))))), "No changes yet."),
+          h("a", { class: "fn-more", href: "#log" }, "Full log →")),
       ),
     );
   },
 });
 
-const lenders = (ds: { by: Record<string, number> }[]) => [...new Set(ds.flatMap((p) => Object.keys(p.by)))];
+/** The "N to update" pill scrolls to the list (a #hash link would re-route). */
+function jump(btn: HTMLElement): HTMLElement {
+  btn.addEventListener("click", () => document.getElementById("todo")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  return btn;
+}
 
 function groupCards(rows: { as_of: string; name: string; balance: number; note?: string | null }[]) {
   const keys = [...new Set(rows.map((r) => r.name))];

@@ -13,11 +13,11 @@ export const BudgetView = (): View => ({
     const [income, recurring, o] = await Promise.all([api.income(), api.recurring(), api.overview()]);
     const b = o.budget;
     el.replaceChildren(
-      pageHead("Budget", "Every value in the tables can be clicked and edited. Changes save right away."),
+      pageHead("Budget", "Click any value to change it. It saves straight away and everything else updates."),
       tiles(
-        tile("Take-home / month", usd0(b.take_home)),
-        tile("Fixed bills / month", usd0(b.fixed), `${pct(b.fixed_share)} of take-home`),
-        tile("Left after fixed bills", usd0(b.left_over), "per month", b.left_over >= 0 ? "up" : "down"),
+        tile({ label: "Take-home a month", value: usd0(b.take_home), icon: "wallet", tone: "link" }),
+        tile({ label: "Fixed bills a month", value: usd0(b.fixed), icon: "calendar", tone: "maybe", sub: `${pct(b.fixed_share)} of take-home` }),
+        tile({ label: "Left after bills", value: usd0(b.left_over), icon: "piggy", tone: "yes", sub: "every month", trend: b.left_over >= 0 ? "up" : "down" }),
       ),
       section("Income", table({
         columns: ["Source", "Amount", "", "Per month", ""],

@@ -28,8 +28,9 @@ is stored and backed up. Every change goes in an activity log.
 
 ## What it shows
 
-- **Overview:** net worth and its change, debt left, take-home, fixed bills and
-  what's left after them. Charts for net worth, debt by lender and card balances,
+- **Overview:** a greeting, net worth and its change, debt left, take-home, fixed bills and
+  what's left after them. A take-home split bar, debt payoff progress per lender,
+  charts for net worth and card balances,
   plus a "needs updating" list (accounts not logged recently, bills missing an
   amount or due date) and what's due in the next two weeks.
 - **Accounts:** every account by type with its latest balance, a form to log a
