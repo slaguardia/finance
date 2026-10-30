@@ -1,0 +1,73 @@
+/* finance app views. Colors/space/motion come only from the toolkit tokens. */
+.tk-content { max-width: 1280px; }
+
+.fn-head { margin: 6px 0 22px; }
+.fn-head h1 { font-size: 22px; font-weight: 600; margin: 0 0 6px; color: var(--fg); }
+.fn-lede { margin: 0; color: var(--fg-muted); font-size: 14px; max-width: 72ch; line-height: 1.5; }
+
+.fn-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 26px; }
+.fn-tile { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px 16px; }
+.fn-tile-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-faint); }
+.fn-tile-value { font-size: 24px; font-weight: 600; color: var(--fg); margin: 6px 0 4px; font-variant-numeric: tabular-nums; }
+.fn-tile-sub { font-size: 12.5px; color: var(--fg-muted); }
+.fn-up .fn-tile-sub { color: var(--yes); }
+.fn-down .fn-tile-sub { color: var(--no); }
+
+.fn-section { margin-bottom: 28px; min-width: 0; }
+.fn-section h2 { font-size: 15px; font-weight: 600; color: var(--fg); margin: 0 0 12px; }
+.fn-section > .tk-btn { margin-top: 12px; }
+.fn-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 0 28px; }
+.fn-grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 28px; }
+
+.fn-chart { width: 100%; height: auto; display: block; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.fn-grid { stroke: var(--border); stroke-width: 1; }
+.fn-axis { fill: var(--fg-faint); font-size: 11px; font-family: var(--font-ui); }
+.fn-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.fn-dot { stroke: var(--bg-2); stroke-width: 2; }
+.fn-bar { stroke: var(--bg-2); stroke-width: 1; }
+.fn-dot:hover, .fn-bar:hover { opacity: 0.8; }
+.fn-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12.5px; color: var(--fg-muted); }
+.fn-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+.fn-list { list-style: none; margin: 0; padding: 0; }
+.fn-list li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; color: var(--fg); }
+.fn-list li:last-child { border-bottom: none; }
+.fn-muted { color: var(--fg-faint); }
+
+.fn-edit { cursor: pointer; border-bottom: 1px dashed var(--border-strong); font-variant-numeric: tabular-nums; }
+.fn-edit:hover, .fn-edit:focus { color: var(--link); border-bottom-color: var(--link); outline: none; }
+.fn-input {
+  background: var(--bg-elevated); color: var(--fg); border: 1px solid var(--border-strong); border-radius: var(--r-md);
+  padding: 6px 9px; font: inherit; font-size: 13.5px; min-width: 0;
+}
+.fn-input:focus { outline: none; border-color: var(--accent); }
+td .fn-input { width: 100%; max-width: 14em; }
+
+.fn-field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--fg-muted); }
+.fn-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.fn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fn-section > .fn-field { max-width: 220px; }
+
+.fn-drop {
+  border: 1px dashed var(--border-strong); border-radius: var(--r-lg); padding: 18px; color: var(--fg-muted);
+  font-size: 13.5px; transition: border-color var(--dur-fast) var(--ease);
+}
+.fn-drop-on { border-color: var(--accent); background: var(--bg-elevated); }
+
+.fn-x {
+  background: none; border: none; color: var(--fg-faint); font-size: 16px; cursor: pointer; padding: 0 4px; line-height: 1;
+}
+.fn-x:hover { color: var(--no); }
+
+.tk-table-wrap { overflow-x: auto; }
+.tk-table td { font-variant-numeric: tabular-nums; }
+
+/* Narrow screens: the sidebar becomes a top bar with scrolling pills. */
+@media (max-width: 760px) {
+  .cap-layout { grid-template-columns: 1fr; }
+  .cap-side { position: static; flex-direction: row; align-items: center; border-right: none; border-bottom: 1px solid var(--border); padding: 12px 16px; overflow-x: auto; }
+  .cap-nav-vert { flex-direction: row; }
+  main.cap-main { padding: 16px; }
+  .fn-grid2, .fn-grid3 { grid-template-columns: 1fr; }
+  .fn-tile-value { font-size: 20px; }
+}

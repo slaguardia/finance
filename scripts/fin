@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Talk to the finance API from the host, inside the docker network (bypasses the
+# edge, so no sign-in; only someone with a shell on this box can reach it).
+#   fin GET /api/overview
+#   fin POST /api/recurring '{"name":"Netflix","frequency":"monthly","amount":15.49,"due_day":4}'
+#   fin PUT /api/balances @balances.json
+#   fin upload <document-id> <file>
+set -euo pipefail
+container=${FIN_CONTAINER:-finance}
+ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$container")
+base="http://$ip:${FIN_PORT:-8789}"
+case "${1:-}" in
+  upload)
+    f=$3
+    curl -fsS -X PUT --data-binary @"$f" \
+      -H "Content-Type: $(file -b --mime-type "$f")" \
+      -H "X-Filename: $(basename "$f" | jq -sRr @uri)" \
+      "$base/api/documents/$2/file"; echo ;;
+  GET|POST|PUT|PATCH|DELETE)
+    m=$1 p=$2; shift 2
+    curl -sS -X "$m" -H 'Content-Type: application/json' ${1:+--data-binary "$1"} "$base$p"; echo ;;
+  *) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

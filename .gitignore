@@ -1,0 +1,13 @@
+node_modules/
+backend/dist/
+*.log
+.env
+.env.local
+# Real data never goes in the repo: the database, stored documents, backups, imports.
+data/
+backups/
+*.db
+*.db-wal
+*.db-shm
+seed*.json
+# web/dist IS committed: the backend image bakes the prebuilt PWA.
