@@ -247,6 +247,11 @@ td .fn-input { width: 100%; max-width: 14em; padding: 5px 8px; }
 @media (max-width: 760px) {
   .fn-report-fields .fn-field { max-width: none; flex-basis: 100%; }
   .fn-catrow td:first-child { white-space: normal; }
+  .fn-taxforms :is(th, td):is(:nth-child(1), :nth-child(2), :nth-child(3)) { display: none; }
+  .fn-taxforms .fn-phone-only { display: block; width: max-content; margin-bottom: 5px; }
+  .fn-taxforms td { white-space: normal; }
+  .fn-taxforms .fn-open { padding: 6px 8px; }
+  .fn-taxforms .fn-open span { display: none; }
   .cap-layout { grid-template-columns: 1fr; }
   .cap-side { position: static; flex-direction: row; align-items: center; border-right: none; border-bottom: 1px solid var(--hairline); padding: 12px 16px; overflow-x: auto; }
   .cap-nav-vert { flex-direction: row; }
@@ -289,3 +294,9 @@ td .fn-input { width: 100%; max-width: 14em; padding: 5px 8px; }
   background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--fg); }
 .fn-sgrid th[tabindex], .fn-srow[tabindex], .fn-stmt-none { cursor: default; }
 .fn-report .fn-input { background: var(--card); }
+/* ---- tax forms table (Documents) ---- */
+.fn-pill-form { background: var(--link-bg); color: var(--link); font-family: var(--font-num); font-weight: 700; white-space: nowrap; }
+.fn-taxwhat { cursor: default; border-bottom: 1px dotted var(--fg-faint); }
+.fn-open { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; font-size: 13px; text-decoration: none; white-space: nowrap; }
+.fn-tip-full { -webkit-line-clamp: unset; display: block; }
+.fn-phone-only { display: none; }

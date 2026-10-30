@@ -13,6 +13,7 @@ export const DocumentsView = (): View => ({
     el.replaceChildren(
       pageHead("Documents", "Every statement, bill and form, with what it changed. Drop files here, then ask Claude to file them."),
       statementGrid(docs.filter(isStatement), accounts),
+      ...taxForms(docs),
       uploadForm(),
       section(`Catalog (${docs.length})`, table({
         columns: ["Date", "Type", "From", "Description", "Amount", "Applied to", "Notes", ""],
@@ -33,6 +34,9 @@ export const DocumentsView = (): View => ({
 });
 
 const isStatement = (d: Doc) => /statement/i.test(d.type ?? "");
+const isTaxForm = (d: Doc) => /\b(W-2|1099|1098|1095|5498)\b|tax form/i.test(d.type ?? "");
+/** The year a form reports on: the description's leading year ("2025 W-2: …"), else the year before it was issued. */
+const taxYear = (d: Doc) => (d.description ?? "").match(/^(\d{4})\b/)?.[1] ?? String(Number((d.doc_date ?? d.added_at).slice(0, 4)) - 1);
 const monthOf = (d: Doc) => (d.doc_date ?? d.added_at).slice(0, 7);
 
 /**
@@ -118,6 +122,33 @@ function rowTip(accounts: Account[], filed: number): Node[] {
       a.overdue ? h("div", { class: "fn-tip-foot fn-tip-warn" }, "Needs a newer statement") : null)),
     h("div", { class: "fn-tip-foot" }, `${filed || "No"} statement${filed === 1 ? "" : "s"} on file in the last 12 months`),
   ];
+}
+
+/** W-2s, 1099s, 1098s and the like, newest tax year first, each one click from its PDF. Hover a row for its box details. */
+function taxForms(docs: Doc[]): HTMLElement[] {
+  const forms = docs.filter(isTaxForm)
+    .sort((a, b) => taxYear(b).localeCompare(taxYear(a)) || (a.type ?? "").localeCompare(b.type ?? ""));
+  if (!forms.length) return [];
+  const what = (d: Doc) => { const t = (d.description ?? d.type ?? "Tax form").replace(/^\d{4}\s+[^:]*:\s*/, ""); return t[0].toUpperCase() + t.slice(1); };
+  const detail = (d: Doc) => () => [h("strong", {}, `${taxYear(d)} ${d.type ?? "Tax form"} · ${d.issuer ?? ""}`),
+    h("div", { class: "fn-tip-sub" }, `Issued ${day(d.doc_date ?? d.added_at)}`),
+    d.notes ? h("p", { class: "fn-tip-note fn-tip-full" }, d.notes) : null];
+  const card = section(h("span", {}, icon("file", 16), ` Tax forms (${forms.length})`), table({
+    columns: ["Tax year", "Form", "From", "What it shows", "Amount", ""],
+    rows: forms.map((d) => [
+      taxYear(d),
+      h("span", { class: "fn-pill fn-pill-sm fn-pill-form" }, d.type ?? "Form"),
+      d.issuer ?? "—",
+      h("div", {}, h("span", { class: "fn-pill fn-pill-sm fn-pill-form fn-phone-only" }, d.type ?? "Form"),
+        withTip(h("span", { class: "fn-taxwhat", tabindex: "0" }, what(d)), detail(d))),
+      d.amount == null ? "—" : usd2(d.amount),
+      d.file_name
+        ? h("a", { class: "tk-btn fn-open", href: `/api/documents/${d.id}/file`, target: "_blank", rel: "noopener" }, icon("file", 14), h("span", {}, "Open"))
+        : h("span", { class: "fn-muted" }, "No file"),
+    ]),
+  }));
+  card.classList.add("fn-taxforms");
+  return [card];
 }
 
 /** Download every stored statement since the start of a recent month, as one zip. */
