@@ -233,3 +233,25 @@ td .fn-input { width: 100%; max-width: 14em; padding: 5px 8px; }
   .fn-tile-value { font-size: 22px; margin: 10px 0 4px; }
   .fn-sgrid th:first-child, .fn-sgrid td:first-child { min-width: 132px; }
 }
+
+/* ---- floating tooltip (statement grid) ---- */
+.fn-tip {
+  position: fixed; z-index: 60; width: max-content; max-width: min(300px, calc(100vw - 16px));
+  padding: 11px 13px; border-radius: 12px; background: var(--card-hover); border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); color: var(--fg); font-size: 13px; line-height: 1.4;
+  pointer-events: none; white-space: normal; text-align: left;
+}
+.fn-tip-touch { pointer-events: auto; }
+.fn-tip strong { display: block; font-size: 14px; }
+.fn-tip-sub { color: var(--fg-faint); font-size: 12px; margin-top: 1px; }
+.fn-tip dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 9px 0 0; }
+.fn-tip dt { color: var(--fg-faint); }
+.fn-tip dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fn-tip-note { margin: 9px 0 0; padding-top: 8px; border-top: 1px solid var(--hairline); color: var(--fg-muted); font-size: 12px;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.fn-tip-foot { margin-top: 8px; color: var(--fg-faint); font-size: 12px; }
+.fn-tip-warn { color: var(--maybe); }
+.fn-tip-acct + .fn-tip-acct { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--hairline); }
+.fn-tip-open { display: inline-block; margin-top: 10px; padding: 6px 12px; border-radius: 9px; font-weight: 600; text-decoration: none;
+  background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--fg); }
+.fn-sgrid th[tabindex], .fn-srow[tabindex], .fn-stmt-none { cursor: default; }

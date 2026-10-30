@@ -1,9 +1,9 @@
 import type { View } from "@brainbot/web-toolkit/shell";
 import { button, table } from "@brainbot/web-toolkit/components";
 import { api, send, type Account, type Doc } from "../api";
-import { day, h, lastMonths, shortMonth, todayIso, usd2 } from "../fmt";
+import { day, h, lastMonths, month, rate, shortMonth, todayIso, usd2 } from "../fmt";
 import { editable, parseMoney } from "../edit";
-import { pageHead, removeBtn, section } from "../ui";
+import { pageHead, removeBtn, section, withTip } from "../ui";
 import { icon } from "../icons";
 import { isDone, KIND_ICON, KIND_TONE } from "./accounts";
 
@@ -33,7 +33,6 @@ export const DocumentsView = (): View => ({
 });
 
 const isStatement = (d: Doc) => /statement/i.test(d.type ?? "");
-const tip = (d: Doc) => `${day(d.doc_date ?? d.added_at)} · ${d.description ?? d.type ?? "Statement"}`;
 const monthOf = (d: Doc) => (d.doc_date ?? d.added_at).slice(0, 7);
 
 /**
@@ -58,29 +57,67 @@ function statementGrid(docs: Doc[], accounts: Account[]): HTMLElement {
     (k ? rows.get(k)!.docs : other).push(d);
   }
 
-  const cells = (ds: Doc[]) => months.map((m) => {
+  const cells = (row: string, ds: Doc[]) => months.map((m) => {
     const here = ds.filter((d) => monthOf(d) === m);
-    return h("td", {}, ...(here.length ? here.map((d) => d.file_name
-      ? h("a", { class: "fn-stmt", href: `/api/documents/${d.id}/file`, target: "_blank", rel: "noopener", title: tip(d), "aria-label": tip(d) }, icon("file", 15))
-      : h("span", { class: "fn-stmt fn-stmt-nofile", title: `${tip(d)} (no file stored)` }, icon("file", 15)))
-      : [h("span", { class: "fn-stmt-none" }, "·")]));
+    return h("td", {}, ...(here.length ? here.map((d) => withTip(d.file_name
+      ? h("a", { class: "fn-stmt", href: `/api/documents/${d.id}/file`, target: "_blank", rel: "noopener", "aria-label": label(d) }, icon("file", 15))
+      : h("span", { class: "fn-stmt fn-stmt-nofile", tabindex: "0", "aria-label": label(d) }, icon("file", 15)),
+      (touch) => stmtTip(d, byId, touch)))
+      : [withTip(h("span", { class: "fn-stmt-none" }, "·"), () => [h("strong", {}, `Nothing for ${month(m)}`), h("div", { class: "fn-tip-sub" }, row)])]));
   });
-  const head = h("tr", {}, h("th", {}, "Account"), ...months.map((m) => h("th", {}, shortMonth(m))));
+  const perMonth = (m: string) => docs.filter((d) => monthOf(d) === m).length;
+  const head = h("tr", {}, h("th", {}, "Account"), ...months.map((m) => withTip(h("th", { tabindex: "0" }, shortMonth(m)), () => [
+    h("strong", {}, month(m)), h("div", { class: "fn-tip-sub" }, `${perMonth(m) || "No"} statement${perMonth(m) === 1 ? "" : "s"} on file`)])));
   const body = [...rows].map(([k, r]) => {
     const kind = r.accounts[0].kind;
     const names = r.accounts.map((a) => a.name).filter((n) => n !== k);
     return h("tr", { class: `fn-tone-${KIND_TONE[kind]}` },
-      h("td", {}, h("div", { class: "fn-srow" }, h("span", { class: "fn-chip" }, icon(KIND_ICON[kind], 16)),
-        h("div", {}, k, names.length ? h("small", {}, names.length > 2 ? `${names.length} accounts` : names.join(", ")) : null))),
-      ...cells(r.docs));
+      h("td", {}, withTip(h("div", { class: "fn-srow", tabindex: "0" }, h("span", { class: "fn-chip" }, icon(KIND_ICON[kind], 16)),
+        h("div", {}, k, names.length ? h("small", {}, names.length > 2 ? `${names.length} accounts` : names.join(", ")) : null)),
+        () => rowTip(r.accounts, r.docs.filter((d) => monthOf(d) >= months[0]).length))),
+      ...cells(k, r.docs));
   });
   if (other.length) body.push(h("tr", { class: "fn-tone-link" },
-    h("td", {}, h("div", { class: "fn-srow" }, h("span", { class: "fn-chip" }, icon("file", 16)), h("div", {}, "Other statements"))), ...cells(other)));
+    h("td", {}, h("div", { class: "fn-srow" }, h("span", { class: "fn-chip" }, icon("file", 16)), h("div", {}, "Other statements"))),
+    ...cells("Statements that don't match an account above", other)));
 
   return section("Statements by month",
-    h("p", { class: "fn-muted fn-note" }, "Each icon is a statement on file: hover for its date, click to open it. A dot means nothing on file for that month."),
+    h("p", { class: "fn-muted fn-note" }, "Each icon is a statement on file. Hover or tap one for what it is and what it updated; click to open it. A dot means nothing on file for that month."),
     h("div", { class: "fn-scroll" }, h("table", { class: "fn-sgrid" }, h("thead", {}, head), h("tbody", {}, ...body))),
     exportForm(docs));
+}
+
+const label = (d: Doc) => `${day(d.doc_date ?? d.added_at)} · ${d.description ?? d.type ?? "Statement"}`;
+
+/** What a statement is, the account(s) it updated, and what filing it changed. */
+function stmtTip(d: Doc, byId: Map<string, Account>, touch: boolean): Node[] {
+  const updated = (d.account_ids ?? "").split(",").map((id) => byId.get(id)?.name).filter(Boolean).join(", ");
+  const facts: [string, string][] = [];
+  if (d.issuer) facts.push(["From", d.issuer]);
+  if (d.amount != null) facts.push(["Amount", usd2(d.amount)]);
+  if (updated) facts.push(["Updated", updated]);
+  return [
+    h("strong", {}, d.description ?? d.type ?? "Statement"),
+    h("div", { class: "fn-tip-sub" }, [day(d.doc_date ?? d.added_at), d.type].filter(Boolean).join(" · ")),
+    facts.length ? h("dl", {}, ...facts.flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)])) : null,
+    d.applied_to ? h("p", { class: "fn-tip-note" }, d.applied_to) : null,
+    !d.file_name ? h("div", { class: "fn-tip-foot fn-tip-warn" }, "Catalog entry only: no file stored")
+      : touch ? null : h("div", { class: "fn-tip-foot" }, "Click to open the file"),
+  ].filter((n): n is HTMLElement => n !== null);
+}
+
+/** The accounts behind a grid row: number, latest balance, rate, and whether a statement is overdue. */
+function rowTip(accounts: Account[], filed: number): Node[] {
+  return [
+    ...accounts.map((a) => h("div", { class: "fn-tip-acct" },
+      h("strong", {}, a.name),
+      h("div", { class: "fn-tip-sub" }, [a.institution, a.last4 && `•••• ${a.last4}`, a.kind].filter(Boolean).join(" · ")),
+      h("dl", {},
+        h("dt", {}, "Balance"), h("dd", {}, a.balance == null ? "None logged" : `${usd2(a.balance)} on ${day(a.as_of)}`),
+        ...(a.rate != null ? [h("dt", {}, "Rate"), h("dd", {}, rate(a.rate))] : [])),
+      a.overdue ? h("div", { class: "fn-tip-foot fn-tip-warn" }, "Needs a newer statement") : null)),
+    h("div", { class: "fn-tip-foot" }, `${filed || "No"} statement${filed === 1 ? "" : "s"} on file in the last 12 months`),
+  ];
 }
 
 /** Download every stored statement since the start of a recent month, as one zip. */
