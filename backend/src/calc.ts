@@ -78,8 +78,15 @@ export function accountsWithLatest() {
   return data.accounts.map((a) => {
     const rows = data.byAccount.get(a.id) ?? [];
     const last = rows[rows.length - 1];
-    return { ...a, balance: last?.balance ?? null, rate: last?.rate ?? null, as_of: last?.as_of ?? null };
+    const as_of = last?.as_of ?? null, balance = last?.balance ?? null;
+    return { ...a, balance, rate: last?.rate ?? null, as_of, overdue: overdue(a, balance, as_of) };
   });
+}
+
+/** An open account not logged recently: 45 days for assets and cards, 90 for loans. Paid-off loans never are. */
+function overdue(a: Account, balance: number | null, as_of: string | null): boolean {
+  if (a.closed || (isDebt(a) && balance === 0)) return false;
+  return !as_of || days(as_of, today()) > (isDebt(a) ? 90 : 45);
 }
 
 export const monthlyOf = (amount: number | null, frequency: string) =>
@@ -113,12 +120,9 @@ export function dueSoon(horizon = 14) {
 /** Things that are out of date or incomplete — the check-in list. */
 export function gaps() {
   const out: string[] = [];
-  const t = today();
   for (const a of accountsWithLatest()) {
-    if (a.closed || (isDebt(a) && a.balance === 0)) continue;
-    const limit = isDebt(a) ? 90 : 45;
-    if (!a.as_of) out.push(`${a.name}: no balance logged yet`);
-    else if (days(a.as_of, t) > limit) out.push(`${a.name}: last logged ${a.as_of}`);
+    if (!a.overdue) continue;
+    out.push(a.as_of ? `${a.name}: last logged ${a.as_of}` : `${a.name}: no balance logged yet`);
   }
   for (const r of db().prepare("SELECT name, amount, due_day FROM recurring WHERE active=1").all() as any[]) {
     if (r.amount == null) out.push(`${r.name}: amount unknown`);

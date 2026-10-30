@@ -1,7 +1,7 @@
 // Thin wrappers over the backend's /api/* (the app's whole control surface).
 export type Account = {
   id: string; name: string; kind: string; institution: string | null; last4: string | null;
-  sort: number; closed: number; notes: string | null; balance: number | null; rate: number | null; as_of: string | null;
+  sort: number; closed: number; notes: string | null; balance: number | null; rate: number | null; as_of: string | null; overdue: boolean;
 };
 export type Balance = { account_id: string; as_of: string; balance: number; rate: number | null; note?: string | null; document?: string | null };
 export type Recurring = {

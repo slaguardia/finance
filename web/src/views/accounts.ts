@@ -4,37 +4,71 @@ import { api, send, type Account } from "../api";
 import { day, h, month, rate, shortMonth, todayIso, usd0, usd2 } from "../fmt";
 import { editable, parseMoney } from "../edit";
 import { lineChart } from "../chart";
-import { muted, pageHead, removeBtn, section } from "../ui";
+import { muted, pageHead, removeBtn, section, tile, tiles, type Tone } from "../ui";
+import { icon } from "../icons";
 
 const KIND_LABEL: Record<string, string> = {
   cash: "Cash", investment: "Investments", retirement: "Retirement", insurance: "Insurance cash value", card: "Credit cards", loan: "Loans",
 };
 const KINDS = Object.keys(KIND_LABEL);
+/** Each kind gets its own color and icon, so the groups read apart at a glance. */
+const KIND_TONE: Record<string, Tone> = { cash: "yes", investment: "link", retirement: "accent", insurance: "link", card: "maybe", loan: "no" };
+const KIND_ICON: Record<string, string> = { cash: "wallet", investment: "up", retirement: "piggy", insurance: "shield", card: "card", loan: "down" };
+
+const isDone = (a: Account) => !!a.closed || (a.kind === "loan" && a.balance === 0);
+const sum = (as: Account[]) => as.reduce((s, a) => s + (a.balance ?? 0), 0);
+const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 export const AccountsView = (): View => ({
   async mount(el) {
     const accounts = await api.accounts();
-    const open = accounts.filter((a) => !a.closed && !(a.kind === "loan" && a.balance === 0));
+    const open = accounts.filter((a) => !isDone(a));
+    const kinds = KINDS.filter((k) => accounts.some((a) => a.kind === k));
     el.replaceChildren(
       pageHead("Accounts", "Click a balance to correct it, or log a new set of balances below. Click an account for its history."),
-      ...KINDS.filter((k) => accounts.some((a) => a.kind === k)).map((k) =>
-        section(KIND_LABEL[k], table({
-          columns: ["Account", "Balance", ...(k === "loan" || k === "card" ? ["Rate"] : []), "As of"],
-          rows: accounts.filter((a) => a.kind === k).map((a) => [
-            h("a", { href: `#account/${encodeURIComponent(a.id)}` }, a.name, a.closed ? " (closed)" : ""),
-            a.as_of ? editable({
-              value: a.balance, display: usd2(a.balance), type: "money",
-              save: (v) => api.setBalance({ account_id: a.id, as_of: a.as_of!, balance: parseMoney(v) ?? 0 }),
-            }) : muted("—"),
-            ...(k === "loan" || k === "card" ? [rate(a.rate)] : []),
-            day(a.as_of),
-          ]),
-        }))),
+      tiles(...kinds.map((k) => {
+        const live = open.filter((a) => a.kind === k), late = live.filter((a) => a.overdue).length;
+        return tile({
+          label: k === "card" ? "Owed on cards" : k === "loan" ? "Left on loans" : KIND_LABEL[k],
+          value: usd0(sum(live)), icon: KIND_ICON[k], tone: KIND_TONE[k],
+          sub: plural(live.length, "account") + (late ? ` · ${late} to update` : ""),
+        });
+      })),
+      ...kinds.map((k) => group(k, accounts.filter((a) => a.kind === k))),
       logForm(open),
       addAccountForm(),
     );
   },
 });
+
+/** One card per kind: a colored header with the group total, then a row per open account. */
+function group(k: string, accounts: Account[]): HTMLElement {
+  const live = accounts.filter((a) => !isDone(a)), done = accounts.filter(isDone);
+  return h("section", { class: `fn-card fn-tone-${KIND_TONE[k]}` },
+    h("div", { class: "fn-group-head" },
+      h("span", { class: "fn-chip" }, icon(KIND_ICON[k], 18)),
+      h("h2", {}, KIND_LABEL[k]),
+      h("span", { class: "fn-group-total fn-num" }, usd2(sum(live)))),
+    h("div", {}, ...live.map(row)),
+    done.length ? h("p", { class: "fn-done" }, icon("check", 14), k === "loan" ? "Paid off:" : "Closed:",
+      ...done.map((a) => h("a", { href: `#account/${encodeURIComponent(a.id)}` }, a.name))) : null);
+}
+
+function row(a: Account): HTMLElement {
+  const meta = [a.institution, a.last4 ? `•••• ${a.last4}` : null, a.rate != null ? `${rate(a.rate)} rate` : null,
+    a.as_of ? `as of ${day(a.as_of)}` : "no balance yet"].filter(Boolean).join(" · ");
+  return h("div", { class: "fn-acct" },
+    h("span", { class: "fn-avatar" }, a.institution ? initials(a.institution) : icon(KIND_ICON[a.kind], 18)),
+    h("div", { class: "fn-acct-main" },
+      h("a", { href: `#account/${encodeURIComponent(a.id)}` }, a.name),
+      h("small", {}, meta, a.overdue ? h("span", { class: "fn-pill fn-pill-maybe fn-pill-sm" }, "Needs update") : null)),
+    h("div", { class: "fn-acct-bal fn-num" }, a.as_of ? editable({
+      value: a.balance, display: usd2(a.balance), type: "money",
+      save: (v) => api.setBalance({ account_id: a.id, as_of: a.as_of!, balance: parseMoney(v) ?? 0 }),
+    }) : muted("—")));
+}
+
+const initials = (s: string) => s.split(/[\s-]+/).filter((w) => /^[a-z]/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 
 /** One date, one field per open account — how month-end balances get logged by hand. */
 function logForm(accounts: Account[]): HTMLElement {
