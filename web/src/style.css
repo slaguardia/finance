@@ -156,6 +156,24 @@ a.fn-stmt:hover { filter: brightness(1.25); }
 .fn-breakdown-notes li { margin-top: 3px; }
 .fn-breakdown-notes b { color: var(--fg-muted); font-weight: 600; }
 
+/* ---- categories: one color each, shared by the bar, the dots and the tags ---- */
+:root {
+  --cat-rent: #fb923c; --cat-utilities: #34d399; --cat-insurance: #7aa9ff; --cat-debt: #ef6464; --cat-subscription: #8b6dff;
+  --cat-business: #e879f9; --cat-fitness: #22d3ee; --cat-membership: #a3e635; --cat-fees: #c8a27a; --cat-other: #9099a8;
+}
+.c-rent { --c: var(--cat-rent); } .c-utilities { --c: var(--cat-utilities); } .c-insurance { --c: var(--cat-insurance); }
+.c-debt { --c: var(--cat-debt); } .c-subscription { --c: var(--cat-subscription); } .c-business { --c: var(--cat-business); }
+.c-fitness { --c: var(--cat-fitness); } .c-membership { --c: var(--cat-membership); } .c-fees { --c: var(--cat-fees); }
+.c-other { --c: var(--cat-other); }
+.fn-cat { color: var(--c); background: color-mix(in srgb, var(--c) 15%, transparent); border-radius: 999px; padding: 3px 11px; margin: 0;
+  font-family: var(--font-ui); font-size: 12.5px; font-weight: 600; }
+.fn-cat:hover, .fn-cat:focus { color: var(--c); background: color-mix(in srgb, var(--c) 26%, transparent); }
+.fn-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+.fn-namecell { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.fn-off { opacity: 0.45; }
+.fn-catbar { margin: 0 0 18px; }
+.fn-catrow .fn-chip, .fn-catrow .fn-stmt { color: var(--c); background: color-mix(in srgb, var(--c) 15%, transparent); }
+
 /* ---- lists ---- */
 .fn-list { list-style: none; margin: 0; padding: 0; }
 .fn-list li { padding: 10px 0; border-bottom: 1px solid var(--hairline); font-size: 14px; color: var(--fg); }

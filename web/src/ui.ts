@@ -34,16 +34,20 @@ export function list(items: (string | Node)[], empty: string): HTMLElement {
 }
 
 /** A horizontal bar split into colored parts, with a legend underneath. */
-export function splitBar(parts: { label: string; value: number; tone: Tone; text?: string }[]): HTMLElement {
+export function splitBar(parts: { label: string; value: number; tone?: Tone; color?: string; text?: string }[]): HTMLElement {
   const total = parts.reduce((s, p) => s + Math.max(p.value, 0), 0) || 1;
   return h("div", { class: "fn-split" },
     h("div", { class: "fn-split-bar" }, ...parts.map((p) => {
-      const seg = h("span", { class: `fn-bg-${p.tone}`, title: `${p.label}: ${p.text ?? p.value}` });
+      const seg = h("span", { class: p.tone ? `fn-bg-${p.tone}` : "", title: `${p.label}: ${p.text ?? p.value}` });
       seg.style.width = `${(Math.max(p.value, 0) / total) * 100}%`;
+      if (p.color) seg.style.background = p.color;
       return seg;
     })),
-    h("div", { class: "fn-split-legend" }, ...parts.map((p) =>
-      h("span", {}, h("i", { class: `fn-bg-${p.tone}` }), p.label, " ", h("b", { class: "fn-num" }, p.text ?? String(p.value))))));
+    h("div", { class: "fn-split-legend" }, ...parts.map((p) => {
+      const dot = h("i", { class: p.tone ? `fn-bg-${p.tone}` : "" });
+      if (p.color) dot.style.background = p.color;
+      return h("span", {}, dot, p.label, " ", h("b", { class: "fn-num" }, p.text ?? String(p.value)));
+    })));
 }
 
 /** A labelled 0–100% progress bar. */

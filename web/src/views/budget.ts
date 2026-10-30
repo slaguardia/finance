@@ -3,7 +3,7 @@ import { button, table } from "@brainbot/web-toolkit/components";
 import { api, send, type Doc, type Recurring } from "../api";
 import { h, lastMonths, monthName, ordinal, pct, shortMonth, todayIso, usd0, usd2 } from "../fmt";
 import { editable, parseMoney } from "../edit";
-import { pageHead, removeBtn, section, tile, tiles } from "../ui";
+import { pageHead, removeBtn, section, splitBar, tile, tiles } from "../ui";
 import { icon } from "../icons";
 
 const PER = [{ value: "week", label: "per week" }, { value: "month", label: "per month" }, { value: "year", label: "per year" }];
@@ -12,6 +12,19 @@ const FREQ = [
   { value: "quarterly", label: "Quarterly" }, { value: "semiannually", label: "Every 6 months" }, { value: "annually", label: "Yearly" },
 ];
 const byDate = (r: Recurring) => r.frequency === "weekly" || r.frequency === "biweekly";
+
+/** Categories in table order. Each has one color (--cat-* in style.css), used by the bar, the dots and the tags. */
+const CATS = ["rent", "utilities", "insurance", "debt", "subscription", "business", "fitness", "membership", "fees"];
+const catKey = (r: Recurring) => { const c = (r.category ?? "").toLowerCase(); return CATS.includes(c) ? c : "other"; };
+const catLabel = (k: string) => k[0].toUpperCase() + k.slice(1);
+
+/** Where the monthly fixed bills go, one colored segment per category. */
+function categoryBar(rows: Recurring[]): HTMLElement {
+  const by = new Map<string, number>();
+  for (const r of rows.filter((r) => r.active)) by.set(catKey(r), (by.get(catKey(r)) ?? 0) + r.monthly);
+  const parts = [...by].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  return h("div", { class: "fn-catbar" }, splitBar(parts.map(([k, v]) => ({ label: catLabel(k), value: v, color: `var(--cat-${k})`, text: `${usd0(v)}/mo` }))));
+}
 
 export const BudgetView = (): View => ({
   async mount(el) {
@@ -39,7 +52,7 @@ export const BudgetView = (): View => ({
         const label = prompt("Income source (e.g. Side work)");
         if (label) send("POST", "/api/income", { label, amount: 0, per: "month" }).catch((e) => alert(e.message));
       } })),
-      section("Recurring payments", missingNote(recurring), recurringTable(recurring), button({ label: "+ Add payment", onClick: () => {
+      section("Recurring payments", categoryBar(recurring), missingNote(recurring), recurringTable(recurring), button({ label: "+ Add payment", onClick: () => {
         const name = prompt("What is it? (e.g. Netflix)");
         if (name) send("POST", "/api/recurring", { name, frequency: "monthly", category: "subscription" }).catch((e) => alert(e.message));
       } })),
@@ -60,7 +73,7 @@ function rentCard(recurring: Recurring[], docs: Doc[]): HTMLElement {
   const reported = (r: Recurring, m: string) => docs.filter((d) => d.type === "Bill" && d.issuer === r.name && d.doc_date?.startsWith(m));
   const grid = bills.length ? h("div", { class: "fn-scroll" }, h("table", { class: "fn-sgrid" },
     h("thead", {}, h("tr", {}, h("th", {}, "Bill"), ...months.map((m) => h("th", {}, shortMonth(m))), h("th", {}, "In budget"))),
-    h("tbody", {}, ...bills.map((r) => h("tr", { class: `fn-tone-${r.category?.toLowerCase() === "rent" ? "accent" : "link"}` },
+    h("tbody", {}, ...bills.map((r) => h("tr", { class: `fn-catrow c-${catKey(r)}` },
       h("td", {}, h("div", { class: "fn-srow" }, h("span", { class: "fn-chip" }, icon(r.category?.toLowerCase() === "rent" ? "home2" : "bolt", 16)), h("div", {}, r.name))),
       ...months.map((m) => {
         const ds = reported(r, m);
@@ -139,10 +152,14 @@ function missingNote(rows: Recurring[]): HTMLElement {
 
 function recurringTable(rows: Recurring[]): HTMLElement {
   const patch = (r: Recurring, body: object) => send("PATCH", `/api/recurring/${r.id}`, body);
+  // Grouped by category (in CATS order), biggest monthly cost first; inactive ones last.
+  const sorted = [...rows].sort((a, b) => (b.active - a.active) || (CATS.indexOf(catKey(a)) + 1 || 99) - (CATS.indexOf(catKey(b)) + 1 || 99) || b.monthly - a.monthly);
+  const catOptions = [...new Set([...CATS, ...rows.map((r) => r.category ?? "").filter(Boolean)])].map((c) => ({ value: c, label: catLabel(c) }));
   return table({
     columns: ["Payment", "How often", "Due", "Amount", "Per month", "Category", "Active", ""],
-    rows: rows.map((r) => [
-      editable({ value: r.name, display: r.name, save: (v) => patch(r, { name: v }) }),
+    rows: sorted.map((r) => [
+      h("div", { class: `fn-namecell c-${catKey(r)}${r.active ? "" : " fn-off"}` }, h("span", { class: "fn-dot" }),
+        editable({ value: r.name, display: r.name, save: (v) => patch(r, { name: v }) })),
       editable({ value: r.frequency, display: FREQ.find((f) => f.value === r.frequency)?.label ?? r.frequency, type: "select", options: FREQ,
         save: (v) => patch(r, { frequency: v }) }),
       byDate(r)
@@ -156,8 +173,9 @@ function recurringTable(rows: Recurring[]): HTMLElement {
           }),
       editable({ value: r.amount, display: r.amount == null ? "Add amount" : usd2(r.amount), type: "money", missing: r.amount == null && !!r.active,
         save: (v) => patch(r, { amount: parseMoney(v) }) }),
-      usd2(r.monthly),
-      editable({ value: r.category ?? "", display: r.category || "—", save: (v) => patch(r, { category: v }) }),
+      h("b", { class: "fn-num" }, usd2(r.monthly)),
+      tag(editable({ value: r.category ?? "", display: r.category ? catLabel(r.category) : "Set", type: "select", options: catOptions,
+        save: (v) => patch(r, { category: v }) }), catKey(r)),
       editable({ value: String(r.active), display: r.active ? "Yes" : "No", type: "select",
         options: [{ value: "1", label: "Yes" }, { value: "0", label: "No" }], save: (v) => patch(r, { active: Number(v) }) }),
       removeBtn(r.name, () => send("DELETE", `/api/recurring/${r.id}`)),
@@ -167,6 +185,8 @@ function recurringTable(rows: Recurring[]): HTMLElement {
 }
 
 /** "9th", "Feb 18th", "Mar, Sep 14th", "Fridays", "Every other Fri from Oct 3". `raw` is the editable text. */
+const tag = (e: HTMLElement, k: string) => { e.classList.add("fn-cat", `c-${k}`); return e; };
+
 function dueText(r: Recurring, raw = false): string {
   if (byDate(r)) {
     if (!r.start_date) return "";
