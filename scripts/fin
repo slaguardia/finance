@@ -14,7 +14,7 @@ case "${1:-}" in
     f=$3
     curl -fsS -X PUT --data-binary @"$f" \
       -H "Content-Type: $(file -b --mime-type "$f")" \
-      -H "X-Filename: $(basename "$f" | jq -sRr @uri)" \
+      -H "X-Filename: $(printf %s "$(basename "$f")" | jq -sRr @uri)" \
       "$base/api/documents/$2/file"; echo ;;
   GET|POST|PUT|PATCH|DELETE)
     m=$1 p=$2; shift 2

@@ -21,6 +21,9 @@ function changed(summary: string): void {
 }
 
 class Bad extends Error {}
+
+/** A file name safe for storage and headers: no control characters, quotes or backslashes. */
+const cleanName = (s: string) => s.replace(/[\x00-\x1f\x7f"\\]/g, "").trim() || "file";
 function need<T>(v: T | undefined | null, what: string): T {
   if (v === undefined || v === null || v === "") throw new Bad(`${what} is required`);
   return v;
@@ -278,7 +281,7 @@ export function createApp() {
   app.put("/api/documents/:id/file", express.raw({ type: () => true, limit: "100mb" }), wrap((req, res) => {
     const body = req.body as Buffer;
     if (!Buffer.isBuffer(body) || !body.length) throw new Bad("empty file body");
-    const name = decodeURIComponent(String(req.header("X-Filename") || "file"));
+    const name = cleanName(decodeURIComponent(String(req.header("X-Filename") || "file")));
     const sha = crypto.createHash("sha256").update(body).digest("hex");
     const ext = path.extname(name).toLowerCase().slice(0, 10);
     fs.writeFileSync(path.join(filesDir, sha + ext), body);
@@ -293,7 +296,8 @@ export function createApp() {
     const d = db().prepare("SELECT * FROM documents WHERE id=?").get(req.params.id) as any;
     if (!d?.file_sha) return res.status(404).json({ error: "no file stored for this document" });
     res.set("Content-Type", d.mime);
-    res.set("Content-Disposition", `inline; filename="${String(d.file_name).replace(/"/g, "")}"`);
+    const name = cleanName(String(d.file_name));
+    res.set("Content-Disposition", `inline; filename="${name.replace(/[^\x20-\x7e]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(name)}`);
     res.sendFile(path.join(filesDir, d.file_sha + d.file_ext));
   });
   app.delete("/api/documents/:id", wrap((req, res) => {
