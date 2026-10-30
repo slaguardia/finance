@@ -3,12 +3,13 @@ import { badge, table } from "@brainbot/web-toolkit/components";
 import { api } from "../api";
 import { day, h, rate, shortMonth, signed, usd0, usd2 } from "../fmt";
 import { legend, stackedBars } from "../chart";
-import { pageHead, section, tile, tiles } from "../ui";
+import { pageHead, progress, section, tile, tiles } from "../ui";
 
 export const DebtView = (): View => ({
   async mount(el) {
     const [o, accounts] = await Promise.all([api.overview(), api.accounts()]);
-    const loans = accounts.filter((a) => a.kind === "loan");
+    // Open loans first; paid-off ones sink to the bottom.
+    const loans = accounts.filter((a) => a.kind === "loan").sort((a, b) => Number(a.balance === 0) - Number(b.balance === 0));
     const ds = o.debt_series;
     const keys = [...new Set(ds.flatMap((p) => Object.keys(p.by)))];
     const last = ds[ds.length - 1], first = ds[0];
@@ -21,7 +22,12 @@ export const DebtView = (): View => ({
           icon: "check", tone: "yes", sub: first ? `since each lender's first statement` : undefined, trend: "up" }),
         tile({ label: "Interest a month", value: usd2(monthly), icon: "clock", tone: "maybe", sub: "balance × rate ÷ 12" }),
       ),
-      section("Debt by lender", stackedBars(ds.map((p) => ({ label: shortMonth(p.as_of), title: day(p.as_of), parts: p.by })), keys, { width: 1400, height: 260, lowerIsBetter: true }), legend(keys)),
+      section("Debt by lender", stackedBars(ds.map((p) => ({ label: shortMonth(p.as_of), title: day(p.as_of), parts: p.by })), keys, { height: 260, lowerIsBetter: true }), legend(keys)),
+      section("Paid down by lender", ...keys.map((k) => {
+        const start = ds.find((p) => k in p.by)!.by[k], now = last.by[k] ?? 0, prev = ds.length > 1 ? ds[ds.length - 2].by[k] : undefined;
+        const moved = prev != null && Math.round(now - prev) ? ` · ${signed(now - prev)} since the last statement` : "";
+        return progress(k, start - now, start, now === 0 ? "Paid off" : `${usd0(now)} left of ${usd0(start)}${moved}`, now === 0 ? "yes" : "link");
+      })),
       section("Loans", table({
         columns: ["Loan", "Lender", "Balance", "Rate", "As of", "Status"],
         rows: loans.map((a) => [
@@ -34,11 +40,6 @@ export const DebtView = (): View => ({
         ]),
         sortable: true,
       })),
-      ds.length > 1 ? section("Change between the last two statements",
-        h("p", {}, ...keys.map((k, i) => {
-          const prev = ds[ds.length - 2].by[k];
-          return h("span", {}, i ? " · " : "", prev == null ? `${k}: added` : `${k} ${signed(last.by[k] - prev)}`);
-        }))) : "",
     );
   },
 });

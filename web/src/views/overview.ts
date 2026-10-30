@@ -65,14 +65,14 @@ export const OverviewView = (): View => ({
           h("a", { class: "fn-more", href: "#debt" }, "See every loan →")),
       ),
       section("Credit card balances",
-        cardGroups.groups.length ? stackedBars(cardGroups.groups, cardGroups.keys, { width: 1400, height: 240, lowerIsBetter: true, compare: false }) : muted("No card balances yet."),
+        cardGroups.groups.length ? stackedBars(cardGroups.groups, cardGroups.keys, { height: 240, lowerIsBetter: true, compare: false }) : muted("No card balances yet."),
         legend(cardGroups.keys)),
       grid3(
         section(h("span", {}, icon("calendar", 16), " Coming up"), list(o.due_soon.map((d) =>
           h("span", { class: "fn-li" }, h("span", {}, d.name, h("small", {}, day(d.due))), h("b", { class: "fn-num" }, usd2(d.amount)))), "Nothing due in the next two weeks.")),
         h("div", { id: "todo" }, section(h("span", {}, icon("bell", 16), " To update"), list(o.gaps.map((g) => g.replace(/\d{4}-\d{2}-\d{2}/, (d) => day(d))), "Everything's up to date."))),
-        section(h("span", {}, icon("clock", 16), " Recent changes"), list(o.activity.slice(0, 6).map((a) =>
-          h("span", { class: "fn-li" }, h("span", {}, a.summary, h("small", {}, day(a.at))))), "No changes yet."),
+        section(h("span", {}, icon("clock", 16), " Recent changes"), list(o.activity.slice(0, 5).map((a) =>
+          h("span", { class: "fn-li" }, h("span", {}, h("span", { class: "fn-clamp", title: a.summary }, a.summary), h("small", {}, day(a.at))))), "No changes yet."),
           h("a", { class: "fn-more", href: "#log" }, "Full log →")),
       ),
     );

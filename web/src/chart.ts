@@ -1,6 +1,6 @@
 // Hand-rolled SVG charts (no chart library, per the platform rules). Each chart
-// draws into a viewBox and scales to its container's width; a chart that spans
-// the page passes a wider `width` so its text stays the same size. Hover, focus
+// redraws at its box's real pixel width, so axis text is the same size on a
+// phone and a wide screen. Hover, focus
 // or tap anywhere in a point's column for a card with its value, the change
 // since the previous point, and (stacked bars) every part.
 import { h, signed, usd2 } from "./fmt";
@@ -9,6 +9,8 @@ import { withTip } from "./ui";
 const NS = "http://www.w3.org/2000/svg";
 const PAD = { t: 14, r: 8, b: 28, l: 52 };
 let W = 720;
+/** Room per x-axis label, so labels thin out on narrow charts instead of colliding. */
+const LABEL_W = 64;
 let uid = 0;
 
 /** Categorical series colors, all from the toolkit's tokens. */
@@ -20,21 +22,46 @@ function el<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, 
   return e;
 }
 
-function niceMax(v: number) {
-  if (v <= 0) return 1;
-  const p = 10 ** Math.floor(Math.log10(v));
-  return [1, 2, 2.5, 5, 10].map((m) => m * p).find((m) => m >= v)!;
+/** Round guide steps (1, 2 or 5 × 10ⁿ) for about four guides above zero. */
+function scale(v: number) {
+  if (v <= 0) return { top: 4, step: 1 };
+  const raw = v / 4, p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((m) => m * p).find((m) => m >= raw)!;
+  return { top: Math.ceil(v / step) * step, step };
+}
+
+/** A box the chart fills; it draws once it knows its width and again whenever that changes. */
+function responsive(height: number, draw: () => SVGSVGElement): HTMLElement {
+  const box = h("div", { class: "fn-chartbox" });
+  box.style.height = `${height}px`;
+  let drawn = 0;
+  new ResizeObserver(([e]) => {
+    const w = Math.round(e.contentRect.width);
+    if (!w || Math.abs(w - drawn) < 2) return;
+    drawn = w;
+    W = w;
+    box.replaceChildren(draw());
+  }).observe(box);
+  return box;
+}
+
+/** Repeated labels (three statements in one month) fall back to the day: "Oct 19", "Oct 29". */
+function dedupe<T extends { label: string; title: string }>(items: T[]): T[] {
+  const seen = new Map<string, number>();
+  for (const i of items) seen.set(i.label, (seen.get(i.label) ?? 0) + 1);
+  return items.map((i) => (seen.get(i.label)! > 1 ? { ...i, label: i.title.replace(/, \d{4}$/, "") } : i));
 }
 const compact = (n: number) =>
   Math.abs(n) >= 1000 ? `$${(n / 1000).toFixed(Math.abs(n) >= 10_000 || n % 1000 === 0 ? 0 : 1)}k` : `$${Math.round(n)}`;
 
 /** Faint horizontal guides + left labels. No frame, no box. */
 function frame(height: number, max: number) {
-  const svg = el("svg", { viewBox: `0 0 ${W} ${height}`, class: "fn-chart", role: "img" });
+  const svg = el("svg", { viewBox: `0 0 ${W} ${height}`, width: W, height, class: "fn-chart", role: "img" });
+  const { top, step } = scale(max);
   const ih = height - PAD.t - PAD.b;
-  const y = (v: number) => PAD.t + ih - (v / max) * ih;
-  for (let i = 0; i <= 4; i++) {
-    const v = (max / 4) * i;
+  const y = (v: number) => PAD.t + ih - (v / top) * ih;
+  for (let i = 0; step * i <= top; i++) {
+    const v = step * i;
     svg.append(el("line", { x1: PAD.l, x2: W - PAD.r, y1: y(v), y2: y(v), class: i ? "fn-guide" : "fn-base" }));
     const t = el("text", { x: PAD.l - 10, y: y(v) + 4, "text-anchor": "end", class: "fn-axis" });
     t.textContent = compact(v);
@@ -47,6 +74,7 @@ function xLabel(svg: SVGSVGElement, x: number, text: string, height: number) {
   const t = el("text", { x, y: height - 8, "text-anchor": "middle", class: "fn-axis" });
   t.textContent = text;
   svg.append(t);
+  return t;
 }
 
 /** A hover/focus/tap target covering one point's column, from x0 to x1. */
@@ -73,10 +101,14 @@ function card(o: { title: string; value: number; prev?: { title: string; value: 
 export type LinePoint = { label: string; title: string; value: number; t: number; notes?: string[] };
 
 /** A line over time with a soft fill. `t` is a timestamp so uneven gaps stay honest. */
-export function lineChart(points: LinePoint[], opts: { height?: number; color?: string; width?: number; lowerIsBetter?: boolean } = {}): SVGSVGElement {
-  W = opts.width ?? 560;
+export function lineChart(points: LinePoint[], opts: { height?: number; color?: string; lowerIsBetter?: boolean } = {}): HTMLElement {
   const height = opts.height ?? 220;
-  const { svg, y } = frame(height, niceMax(Math.max(...points.map((p) => p.value), 0) * 1.08));
+  points = dedupe(points);
+  return responsive(height, () => drawLine(points, height, opts));
+}
+
+function drawLine(points: LinePoint[], height: number, opts: { color?: string; lowerIsBetter?: boolean }): SVGSVGElement {
+  const { svg, y } = frame(height, Math.max(...points.map((p) => p.value), 0) * 1.08);
   if (!points.length) return svg;
   const t0 = points[0].t, t1 = points[points.length - 1].t;
   const x = (t: number) => (t1 === t0 ? (PAD.l + W - PAD.r) / 2 : PAD.l + 16 + ((t - t0) / (t1 - t0)) * (W - PAD.l - PAD.r - 32));
@@ -91,14 +123,19 @@ export function lineChart(points: LinePoint[], opts: { height?: number; color?: 
   const floor = y(0);
   svg.append(el("path", { d: `M${x(t0)},${floor} L${pts.join(" L")} L${x(t1)},${floor} Z`, fill: `url(#${id})`, stroke: "none" }));
   svg.append(el("polyline", { points: pts.join(" "), class: "fn-line", stroke: color }));
-  const every = Math.max(1, Math.ceil(points.length / 8));
+  // Points sit by date, so labels are thinned by distance: the newest always shows, and drops the one before it if too close.
+  let lastLabel: { x: number; t: SVGTextElement } | null = null;
   points.forEach((p, i) => {
     const cx = x(p.t), prev = points[i - 1], next = points[i + 1];
     const g = hit(prev ? (x(prev.t) + cx) / 2 : PAD.l, next ? (cx + x(next.t)) / 2 : W - PAD.r, height, `${p.title}: ${usd2(p.value)}`);
     const dot = el("circle", { cx, cy: y(p.value), r: 5, fill: color, class: "fn-dot" });
     g.append(el("line", { x1: cx, x2: cx, y1: PAD.t, y2: floor, class: "fn-cross" }), dot);
     svg.append(withTip(g, () => card({ ...p, prev, lowerIsBetter: opts.lowerIsBetter }), dot));
-    if (i % every === 0 || i === points.length - 1) xLabel(svg, cx, p.label, height);
+    const end = i === points.length - 1;
+    if (!lastLabel || cx - lastLabel.x >= LABEL_W || end) {
+      if (end && lastLabel && cx - lastLabel.x < LABEL_W) lastLabel.t.remove();
+      lastLabel = { x: cx, t: xLabel(svg, cx, p.label, height) };
+    }
   });
   return svg;
 }
@@ -106,14 +143,18 @@ export function lineChart(points: LinePoint[], opts: { height?: number; color?: 
 export type StackGroup = { label: string; title: string; parts: Record<string, number>; notes?: string[] };
 
 /** Stacked vertical bars, one per group; `keys` fixes the stack order and colors. Rounded tops. */
-export function stackedBars(groups: StackGroup[], keys: string[], opts: { height?: number; width?: number; lowerIsBetter?: boolean; compare?: boolean } = {}): SVGSVGElement {
-  W = opts.width ?? 560;
+export function stackedBars(groups: StackGroup[], keys: string[], opts: { height?: number; lowerIsBetter?: boolean; compare?: boolean } = {}): HTMLElement {
   const height = opts.height ?? 220;
+  groups = dedupe(groups);
+  return responsive(height, () => drawBars(groups, keys, height, opts));
+}
+
+function drawBars(groups: StackGroup[], keys: string[], height: number, opts: { lowerIsBetter?: boolean; compare?: boolean }): SVGSVGElement {
   const total = (g: StackGroup) => keys.reduce((s, k) => s + (g.parts[k] ?? 0), 0);
-  const { svg, y } = frame(height, niceMax(Math.max(...groups.map(total), 0) * 1.05));
+  const { svg, y } = frame(height, Math.max(...groups.map(total), 0) * 1.05);
   const slot = (W - PAD.l - PAD.r) / Math.max(groups.length, 1);
   const bw = Math.min(40, slot * 0.62);
-  const every = Math.max(1, Math.ceil(groups.length / 10));
+  const every = Math.max(1, Math.ceil(groups.length / Math.floor((W - PAD.l - PAD.r) / LABEL_W)));
   const color = (k: string) => SERIES[keys.indexOf(k) % SERIES.length];
   groups.forEach((g, i) => {
     const cx = PAD.l + slot * i + slot / 2;
@@ -136,7 +177,7 @@ export function stackedBars(groups: StackGroup[], keys: string[], opts: { height
       h("i", { style: `background:${color(k)}` }), h("span", {}, k), h("b", {}, usd2(g.parts[k]))])) : null;
     svg.append(withTip(col, () => card({ title: g.title, value: total(g), prev: prev && { title: prev.title, value: total(prev) },
       lowerIsBetter: opts.lowerIsBetter, rows, notes: g.notes }), top));
-    if (i % every === 0 || i === groups.length - 1) xLabel(svg, cx, g.label, height);
+    if (i === groups.length - 1 || (i % every === 0 && groups.length - 1 - i >= every)) xLabel(svg, cx, g.label, height);
   });
   return svg;
 }

@@ -78,12 +78,13 @@ export function removeBtn(what: string, act: () => Promise<unknown>): HTMLElemen
 /**
  * A floating tooltip for small targets like the statement grid's icons and chart columns. It lives on <body>, so a
  * scrolling table can't clip it, and sits above `anchor` (default: the target). Hover or keyboard focus shows it. On a touch screen the first tap shows it (with an "Open file"
- * link when the target is a link) and a tap anywhere else closes it.
+ * link when the target is a link) and a tap anywhere else closes it. Pass `tap = false` when a tap already does something
+ * else (a click-to-edit cell), so touch screens skip the tooltip.
  */
 let tipBox: HTMLElement | null = null, tipOwner: Element | null = null;
 const hideTip = () => { tipBox?.remove(); tipOwner?.removeAttribute("aria-describedby"); tipBox = tipOwner = null; };
 
-export function withTip<T extends Element>(target: T, content: (touch: boolean) => (Node | string | null)[], anchor: Element = target): T {
+export function withTip<T extends Element>(target: T, content: (touch: boolean) => (Node | string | null)[], anchor: Element = target, tap = true): T {
   if (!document.body.dataset.fnTips) {
     document.body.dataset.fnTips = "1";
     document.addEventListener("pointerdown", (e) => {
@@ -110,6 +111,6 @@ export function withTip<T extends Element>(target: T, content: (touch: boolean) 
   target.addEventListener("pointerleave", (e: Event) => { if (!(e instanceof PointerEvent)) return; if (e.pointerType === "mouse" && tipOwner === target) hideTip(); });
   target.addEventListener("focus", () => { if (!touch) show(); });
   target.addEventListener("blur", () => { if (!touch && tipOwner === target) hideTip(); });
-  target.addEventListener("click", (e) => { if (touch && tipOwner !== target) { e.preventDefault(); show(); } });
+  if (tap) target.addEventListener("click", (e) => { if (touch && tipOwner !== target) { e.preventDefault(); show(); } });
   return target;
 }

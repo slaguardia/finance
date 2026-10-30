@@ -172,7 +172,7 @@ function missingJump(rows: Recurring[]): HTMLElement | string {
 function missingNote(rows: Recurring[]): HTMLElement {
   const n = needsInfo(rows);
   const note = h("p", { class: "fn-muted fn-note", id: "fn-recurring" });
-  if (n.length) note.append(icon("bell", 14), ` Highlighted values are missing: ${n.map((r) => `${r.name} (${r.missing.join(", ")})`).join("; ")}.`);
+  if (n.length) note.append(icon("bell", 14), " Highlighted values are missing. Click one to fill it in.");
   else note.append("Every active payment has an amount and a due date.");
   return note;
 }

@@ -141,17 +141,17 @@ export const AccountView = (): View => ({
       section("History", pts.length ? lineChart(pts.map((b) => ({
         label: shortMonth(b.as_of), title: day(b.as_of), value: b.balance, t: Date.parse(b.as_of),
         notes: [b.rate != null ? `Rate ${rate(b.rate)}` : "", b.document ? `From ${b.document}` : "", b.note ?? ""].filter(Boolean),
-      })), { width: 1400, height: 260, lowerIsBetter: a.kind === "loan" || a.kind === "card" }) : muted("No balances yet.")),
+      })), { height: 260, lowerIsBetter: a.kind === "loan" || a.kind === "card" }) : muted("No balances yet.")),
       ...(breakdown ? [breakdownCard(breakdown)] : []),
       section("Balances", table({
         columns: ["As of", "Balance", "Rate", "Note", "From document", ""],
         rows: balances.map((b) => [
-          day(b.as_of),
+          h("span", { class: "fn-nowrap" }, day(b.as_of)),
           editable({ value: b.balance, display: usd2(b.balance), type: "money",
             save: (v) => api.setBalance({ account_id: a.id, as_of: b.as_of, balance: parseMoney(v) ?? 0 }) }),
           editable({ value: b.rate, display: rate(b.rate), type: "number",
             save: (v) => api.setBalance({ account_id: a.id, as_of: b.as_of, balance: b.balance, rate: parseMoney(v) }) }),
-          editable({ value: b.note ?? "", display: b.note || "add note", type: "text",
+          editable({ value: b.note ?? "", display: b.note || "Add note", type: "text", empty: !b.note,
             save: (v) => send("PUT", `/api/notes/${b.as_of}`, { note: v }) }),
           b.document ?? "",
           removeBtn(`the ${month(b.as_of)} balance`, () => send("DELETE", `/api/balances/${encodeURIComponent(a.id)}/${b.as_of}`)),

@@ -10,11 +10,13 @@ export type EditOpts = {
   placeholder?: string;
   /** Highlight it as information still to fill in. */
   missing?: boolean;
+  /** The display is a placeholder ("Add note"), shown faint. */
+  empty?: boolean;
   save: (v: string) => Promise<unknown>;
 };
 
 export function editable(o: EditOpts): HTMLElement {
-  const span = h("span", { class: o.missing ? "fn-edit fn-missing" : "fn-edit", tabindex: "0", title: "Click to edit" }, o.display);
+  const span = h("span", { class: `fn-edit${o.missing ? " fn-missing" : ""}${o.empty ? " fn-edit-empty" : ""}`, tabindex: "0", title: "Click to edit" }, o.display);
   const open = () => {
     let input: HTMLInputElement | HTMLSelectElement;
     if (o.type === "select") {

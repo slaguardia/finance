@@ -18,13 +18,13 @@ export const DocumentsView = (): View => ({
       section(`Catalog (${docs.length})`, table({
         columns: ["Date", "Type", "From", "Description", "Amount", "Applied to", "Notes", ""],
         rows: docs.map((d) => [
-          day(d.doc_date ?? d.added_at),
+          h("span", { class: "fn-nowrap" }, day(d.doc_date ?? d.added_at)),
           editable({ value: d.type ?? "", display: d.type || "—", save: (v) => patch(d, { type: v }) }),
           editable({ value: d.issuer ?? "", display: d.issuer || "—", save: (v) => patch(d, { issuer: v }) }),
-          link(d),
+          h("span", { class: "fn-desc" }, link(d)),
           editable({ value: d.amount, display: d.amount == null ? "—" : usd2(d.amount), type: "money", save: (v) => patch(d, { amount: parseMoney(v) }) }),
-          d.applied_to || h("span", { class: "fn-pill fn-pill-maybe fn-pill-sm" }, "Not filed yet"),
-          editable({ value: d.notes ?? "", display: d.notes || "—", save: (v) => patch(d, { notes: v }) }),
+          d.applied_to ? clamp(d.applied_to) : h("span", { class: "fn-pill fn-pill-maybe fn-pill-sm" }, "Not filed yet"),
+          clamp(editable({ value: d.notes ?? "", display: d.notes || "—", save: (v) => patch(d, { notes: v }) }), d.notes ?? ""),
           removeBtn(`document #${d.id} from the catalog`, () => send("DELETE", `/api/documents/${d.id}`)),
         ]),
         sortable: true,
@@ -32,6 +32,13 @@ export const DocumentsView = (): View => ({
     );
   },
 });
+
+/** Long text cut to three lines; hovering shows all of it (an editable cell opens the full text on click). */
+function clamp(content: string | HTMLElement, full = typeof content === "string" ? content : ""): HTMLElement {
+  const box = typeof content === "string" ? h("span", { tabindex: "0" }, content) : content;
+  box.classList.add("fn-clamp3");
+  return full.length > 140 ? withTip(box, () => [h("p", { class: "fn-tip-full" }, full)], box, false) : box;
+}
 
 const isStatement = (d: Doc) => /statement/i.test(d.type ?? "");
 const isTaxForm = (d: Doc) => /\b(W-2|1099|1098|1095|5498)\b|tax form/i.test(d.type ?? "");

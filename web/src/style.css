@@ -1,8 +1,9 @@
 /* finance — a friendly, soft dashboard skin over the toolkit. Colors come from
    the toolkit tokens; this file adds shape (rounder, softer, borderless cards),
-   a rounded number face (Manrope), and app-only pieces (tiles, bars, charts). */
+   one rounded face (Manrope) for words and numbers, and app-only pieces (tiles, bars, charts). */
 :root {
-  --font-num: "Manrope", var(--font-ui);
+  --font-ui: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-num: var(--font-ui);
   --r-card: 18px;
   --card: var(--bg-2);
   --card-hover: var(--bg-elevated);
@@ -46,13 +47,13 @@ main.cap-main { padding: 30px 40px 56px; }
 }
 .fn-pill-maybe { background: var(--maybe-bg); color: var(--maybe); }
 .fn-pill-yes { background: var(--yes-bg); color: var(--yes); cursor: default; }
-.fn-missing { background: var(--maybe-bg); color: var(--maybe); font-weight: 600; font-family: var(--font-ui); }
+.fn-missing { background: var(--maybe-bg); color: var(--maybe); font-weight: 600; font-family: var(--font-ui); white-space: nowrap; }
 .fn-missing:hover, .fn-missing:focus { background: var(--maybe-bg); color: var(--maybe); filter: brightness(1.2); }
 .fn-pill-inline { padding: 4px 11px; font-size: 12.5px; vertical-align: 1px; margin-left: 4px; }
 .fn-pill-sm { padding: 3px 10px; font-size: 12px; cursor: default; }
 
 /* ---- stat tiles ---- */
-.fn-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 16px; margin-bottom: 18px; }
+.fn-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 16px; margin-bottom: 18px; }
 .fn-tile { background: var(--card); border-radius: var(--r-card); padding: 18px 20px 16px; transition: background var(--dur-base) var(--ease), transform var(--dur-base) var(--ease); }
 .fn-tile:hover { background: var(--card-hover); transform: translateY(-1px); }
 .fn-tile-top { display: flex; align-items: center; gap: 10px; }
@@ -87,7 +88,8 @@ main.cap-main { padding: 30px 40px 56px; }
 .fn-more { display: inline-block; margin-top: 12px; color: var(--link); text-decoration: none; font-size: 13.5px; }
 
 /* ---- charts: no frame, faint guides ---- */
-.fn-chart { width: 100%; height: auto; display: block; overflow: visible; }
+.fn-chartbox { width: 100%; min-width: 0; }
+.fn-chart { width: 100%; height: 100%; display: block; overflow: visible; }
 .fn-guide { stroke: var(--hairline); stroke-width: 1; }
 .fn-base { stroke: var(--border); stroke-width: 1; }
 .fn-axis { fill: var(--fg-faint); font-size: 11.5px; font-weight: 600; }
@@ -206,6 +208,11 @@ a.fn-stmt:hover { filter: brightness(1.25); }
 .fn-li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .fn-li small { display: block; color: var(--fg-faint); font-size: 12.5px; margin-top: 2px; }
 .fn-muted { color: var(--fg-faint); }
+.fn-nowrap { white-space: nowrap; }
+.fn-clamp, .fn-clamp3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.fn-clamp3 { -webkit-line-clamp: 3; min-width: 20ch; }
+.fn-desc { display: block; min-width: 20ch; }
+td > .fn-clamp3.fn-edit { display: -webkit-box; }
 .fn-empty { color: var(--yes); display: flex; align-items: center; gap: 4px; margin: 0; font-size: 14px; }
 
 /* ---- tables inside cards: no second box ---- */
@@ -219,6 +226,7 @@ a.fn-stmt:hover { filter: brightness(1.25); }
 /* ---- editing ---- */
 .fn-edit { cursor: pointer; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; transition: background var(--dur-fast) var(--ease); }
 .fn-edit:hover, .fn-edit:focus { background: var(--link-bg); color: var(--link); outline: none; }
+.fn-edit-empty { color: var(--fg-faint); }
 .fn-input {
   background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 10px;
   padding: 8px 11px; font: inherit; font-size: 14px; min-width: 0;
@@ -252,15 +260,19 @@ td .fn-input { width: 100%; max-width: 14em; padding: 5px 8px; }
   .fn-taxforms td { white-space: normal; }
   .fn-taxforms .fn-open { padding: 6px 8px; }
   .fn-taxforms .fn-open span { display: none; }
+  /* On a phone the nav is a tab bar along the bottom, in thumb reach; the top keeps only the wordmark. */
   .cap-layout { grid-template-columns: 1fr; }
-  .cap-side { position: static; flex-direction: row; align-items: center; border-right: none; border-bottom: 1px solid var(--hairline); padding: 12px 16px; overflow-x: auto; }
-  .cap-nav-vert { flex-direction: row; }
-  .cap-nav a { padding: 8px 10px; }
-  main.cap-main { padding: 18px 16px 40px; }
+  .cap-side { position: static; max-height: none; overflow: visible; flex-direction: row; align-items: center; border-right: none;
+    border-bottom: 1px solid var(--hairline); padding: max(12px, env(safe-area-inset-top)) 16px 12px; }
+  .cap-nav-vert { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px;
+    padding: 6px max(6px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--hairline); }
+  .cap-nav-vert a { flex-direction: column; justify-content: center; gap: 4px; padding: 7px 0 6px; font-size: 11px; font-weight: 600; text-align: center; border-radius: 12px; }
+  main.cap-main { padding: 18px 16px calc(96px + env(safe-area-inset-bottom)); }
   .fn-grid2, .fn-grid3 { grid-template-columns: 1fr; }
   .fn-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .fn-tile { padding: 14px 16px 12px; }
   .fn-tile-value { font-size: 22px; margin: 10px 0 4px; }
+  .fn-tile:last-child:nth-child(odd) { grid-column: span 2; }
   .fn-sgrid th:first-child, .fn-sgrid td:first-child { min-width: 132px; }
 }
 
@@ -298,5 +310,10 @@ td .fn-input { width: 100%; max-width: 14em; padding: 5px 8px; }
 .fn-pill-form { background: var(--link-bg); color: var(--link); font-family: var(--font-num); font-weight: 700; white-space: nowrap; }
 .fn-taxwhat { cursor: default; border-bottom: 1px dotted var(--fg-faint); }
 .fn-open { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; font-size: 13px; text-decoration: none; white-space: nowrap; }
-.fn-tip-full { -webkit-line-clamp: unset; display: block; }
+.fn-tip-full { -webkit-line-clamp: unset; display: block; margin: 0; }
+.fn-tip:has(.fn-tip-full) { max-width: min(420px, calc(100vw - 16px)); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
 .fn-phone-only { display: none; }
