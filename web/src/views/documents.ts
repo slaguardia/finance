@@ -3,7 +3,7 @@ import { button, table } from "@brainbot/web-toolkit/components";
 import { api, send, type Account, type Doc } from "../api";
 import { day, h, lastMonths, month, rate, shortMonth, todayIso, usd2 } from "../fmt";
 import { editable, parseMoney } from "../edit";
-import { pageHead, removeBtn, section, withTip } from "../ui";
+import { pageHead, removeBtn, scrolledToEnd, section, withTip } from "../ui";
 import { icon } from "../icons";
 import { isDone, KIND_ICON, KIND_TONE } from "./accounts";
 
@@ -83,7 +83,7 @@ function statementGrid(docs: Doc[], accounts: Account[]): HTMLElement {
 
   return section("Statements by month",
     h("p", { class: "fn-muted fn-note" }, "Each icon is a statement on file. Hover or tap one for what it is and what it updated; click to open it. A dot means nothing on file for that month."),
-    h("div", { class: "fn-scroll" }, h("table", { class: "fn-sgrid" }, h("thead", {}, head), h("tbody", {}, ...body))),
+    scrolledToEnd(h("div", { class: "fn-scroll" }, h("table", { class: "fn-sgrid" }, h("thead", {}, head), h("tbody", {}, ...body)))),
     exportForm(docs));
 }
 

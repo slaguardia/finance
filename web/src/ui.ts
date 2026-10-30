@@ -60,6 +60,12 @@ export function progress(label: string | Node, done: number, of: number, right: 
 }
 
 /** A small × button that confirms before acting. */
+/** A month grid that's wider than the screen opens scrolled to its newest months. */
+export function scrolledToEnd(box: HTMLElement): HTMLElement {
+  requestAnimationFrame(() => { box.scrollLeft = box.scrollWidth; });
+  return box;
+}
+
 export function removeBtn(what: string, act: () => Promise<unknown>): HTMLElement {
   const b = h("button", { class: "fn-x", title: `Remove ${what}`, "aria-label": `Remove ${what}` }, "×");
   b.addEventListener("click", async (e) => {
