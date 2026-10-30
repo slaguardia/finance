@@ -8,9 +8,10 @@ export type Breakdown = {
   rows: { group: string; label: string; amount: number; detail: string | null; document_id: number | null; document: string | null }[];
 };
 export type Balance = { account_id: string; as_of: string; balance: number; rate: number | null; note?: string | null; document?: string | null };
+export type Frequency = "weekly" | "biweekly" | "monthly" | "quarterly" | "semiannually" | "annually";
 export type Recurring = {
-  id: number; name: string; frequency: "monthly" | "annually"; amount: number | null; due_day: number | null;
-  due_month: number | null; category: string | null; active: number; notes: string | null; monthly: number;
+  id: number; name: string; frequency: Frequency; amount: number | null; due_day: number | null;
+  due_month: number | null; start_date: string | null; category: string | null; active: number; notes: string | null; monthly: number; missing: string[];
 };
 export type Income = { id: number; label: string; amount: number; per: "week" | "month" | "year" };
 export type Doc = {

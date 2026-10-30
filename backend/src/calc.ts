@@ -99,8 +99,35 @@ function overdue(a: Account, balance: number | null, as_of: string | null): bool
   return !as_of || days(as_of, today()) > (isDebt(a) ? 90 : 45);
 }
 
+/** How many times a year each frequency comes due. */
+const PER_YEAR: Record<string, number> = { weekly: 52, biweekly: 26, monthly: 12, quarterly: 4, semiannually: 2, annually: 1 };
 export const monthlyOf = (amount: number | null, frequency: string) =>
-  amount == null ? 0 : frequency === "annually" ? amount / 12 : amount;
+  amount == null ? 0 : (amount * (PER_YEAR[frequency] ?? 12)) / 12;
+
+const byDate = (f: string) => f === "weekly" || f === "biweekly";
+/** Months between payments for the day-of-month kinds. */
+const EVERY: Record<string, number> = { monthly: 1, quarterly: 3, semiannually: 6, annually: 12 };
+
+/** Does a recurring payment fall on date d? Weekly ones count from start_date; the rest use due_day (+ due_month). */
+function fallsOn(r: any, d: Date): boolean {
+  if (byDate(r.frequency)) {
+    if (!r.start_date) return false;
+    const diff = Math.round((d.getTime() - Date.parse(r.start_date)) / DAY);
+    return diff >= 0 && diff % (r.frequency === "weekly" ? 7 : 14) === 0;
+  }
+  if (r.due_day == null || d.getUTCDate() !== r.due_day) return false;
+  const every = EVERY[r.frequency] ?? 1;
+  if (every === 1) return true;
+  return r.due_month != null && (((d.getUTCMonth() + 1 - r.due_month) % every) + every) % every === 0;
+}
+
+/** Whether we know enough to say when a payment is due. */
+const hasDueDate = (r: any) =>
+  byDate(r.frequency) ? !!r.start_date : r.due_day != null && (r.frequency === "monthly" || r.due_month != null);
+
+/** What an active recurring payment is missing: "amount", "due date". */
+export const missingInfo = (r: any): string[] =>
+  !r.active ? [] : [...(r.amount == null ? ["amount"] : []), ...(hasDueDate(r) ? [] : ["due date"])];
 
 export function budget() {
   const income = db().prepare("SELECT * FROM income").all() as { amount: number; per: string }[];
@@ -113,13 +140,12 @@ export function budget() {
 /** Recurring charges due within `horizon` days of today. */
 export function dueSoon(horizon = 14) {
   const now = new Date(today());
-  const rows = db().prepare("SELECT * FROM recurring WHERE active=1 AND due_day IS NOT NULL").all() as any[];
+  const rows = db().prepare("SELECT * FROM recurring WHERE active=1").all() as any[];
   const out: { id: number; name: string; amount: number | null; due: string }[] = [];
   for (const r of rows) {
     for (let i = 0; i <= horizon; i++) {
       const d = new Date(now.getTime() + i * DAY);
-      if (d.getUTCDate() !== r.due_day) continue;
-      if (r.frequency === "annually" && r.due_month !== d.getUTCMonth() + 1) continue;
+      if (!fallsOn(r, d)) continue;
       out.push({ id: r.id, name: r.name, amount: r.amount, due: d.toISOString().slice(0, 10) });
       break;
     }
@@ -134,9 +160,9 @@ export function gaps() {
     if (!a.overdue) continue;
     out.push(a.as_of ? `${a.name}: last logged ${a.as_of}` : `${a.name}: no balance logged yet`);
   }
-  for (const r of db().prepare("SELECT name, amount, due_day FROM recurring WHERE active=1").all() as any[]) {
-    if (r.amount == null) out.push(`${r.name}: amount unknown`);
-    else if (r.due_day == null) out.push(`${r.name}: due date unknown`);
+  for (const r of db().prepare("SELECT * FROM recurring WHERE active=1").all() as any[]) {
+    const m = missingInfo(r);
+    if (m.length) out.push(`${r.name}: ${m.join(" and ")} unknown`);
   }
   return out;
 }

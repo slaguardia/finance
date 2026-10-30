@@ -36,7 +36,8 @@ is stored and backed up. Every change goes in an activity log.
 - **Accounts:** every account by type with its latest balance, a form to log a
   set of month-end balances, and a history chart and table for each account,
   plus its latest breakdown (e.g. Roth vs pre-tax) when a statement gives one.
-- **Budget:** income and recurring payments, all editable in place, plus a
+- **Budget:** income and recurring payments, all editable in place, with any
+  payment missing an amount or due date highlighted, plus a
   "Rent & utilities" card for bills paid outside any statement (Venmo, cash):
   report each month's amount, with the receipt, and see the last six months.
 - **Debt:** each loan's balance, rate and status, the payoff chart, and the
@@ -82,7 +83,7 @@ debt.
 | `accounts` | id (slug), name, kind (`cash` `investment` `retirement` `insurance` `card` `loan`), institution, last 4, closed |
 | `balances` | account, as-of date, balance, rate (APR %), source document |
 | `period_notes` | a note for a date ("holiday travel"), shown with that date's balances |
-| `recurring` | name, `monthly`/`annually`, amount, due day (and month for yearly items), category, active |
+| `recurring` | name, how often (`weekly`, `biweekly`, `monthly`, `quarterly`, `semiannually`, `annually`), amount, due day (+ a month it falls in, for quarterly and longer) or a start date (weekly / every two weeks), category, active |
 | `income` | label, amount, per `week`/`month`/`year` |
 | `breakdowns` | how an account's balance splits on a date, in named groups (a 401(k) by Roth / pre-tax, by who put it in, by fund) |
 | `documents` | dates, type, issuer, description, amount, what it was applied to, notes, stored file or external link |

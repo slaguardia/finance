@@ -7,14 +7,18 @@ import { pageHead, removeBtn, section, tile, tiles } from "../ui";
 import { icon } from "../icons";
 
 const PER = [{ value: "week", label: "per week" }, { value: "month", label: "per month" }, { value: "year", label: "per year" }];
-const FREQ = [{ value: "monthly", label: "Monthly" }, { value: "annually", label: "Yearly" }];
+const FREQ = [
+  { value: "weekly", label: "Weekly" }, { value: "biweekly", label: "Every 2 weeks" }, { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" }, { value: "semiannually", label: "Every 6 months" }, { value: "annually", label: "Yearly" },
+];
+const byDate = (r: Recurring) => r.frequency === "weekly" || r.frequency === "biweekly";
 
 export const BudgetView = (): View => ({
   async mount(el) {
     const [income, recurring, o, docs] = await Promise.all([api.income(), api.recurring(), api.overview(), api.documents()]);
     const b = o.budget;
     el.replaceChildren(
-      pageHead("Budget", "Click any value to change it. It saves straight away and everything else updates."),
+      pageHead("Budget", h("span", {}, "Click any value to change it. It saves straight away and everything else updates. ", missingJump(recurring))),
       tiles(
         tile({ label: "Take-home a month", value: usd0(b.take_home), icon: "wallet", tone: "link" }),
         tile({ label: "Fixed bills a month", value: usd0(b.fixed), icon: "calendar", tone: "maybe", sub: `${pct(b.fixed_share)} of take-home` }),
@@ -35,7 +39,7 @@ export const BudgetView = (): View => ({
         const label = prompt("Income source (e.g. Side work)");
         if (label) send("POST", "/api/income", { label, amount: 0, per: "month" }).catch((e) => alert(e.message));
       } })),
-      section("Recurring payments", recurringTable(recurring), button({ label: "+ Add payment", onClick: () => {
+      section("Recurring payments", missingNote(recurring), recurringTable(recurring), button({ label: "+ Add payment", onClick: () => {
         const name = prompt("What is it? (e.g. Netflix)");
         if (name) send("POST", "/api/recurring", { name, frequency: "monthly", category: "subscription" }).catch((e) => alert(e.message));
       } })),
@@ -114,19 +118,44 @@ function reportForm(bills: Recurring[]): HTMLElement {
     fresh, save);
 }
 
+const needsInfo = (rows: Recurring[]) => rows.filter((r) => r.missing.length);
+
+/** A pill under the page title that jumps to the recurring table when something's incomplete. */
+function missingJump(rows: Recurring[]): HTMLElement | string {
+  const n = needsInfo(rows).length;
+  if (!n) return "";
+  const b = h("button", { class: "fn-pill fn-pill-maybe fn-pill-inline" }, icon("bell", 14), `${n} payment${n === 1 ? "" : "s"} missing info`);
+  b.addEventListener("click", () => document.getElementById("fn-recurring")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  return b;
+}
+
+function missingNote(rows: Recurring[]): HTMLElement {
+  const n = needsInfo(rows);
+  const note = h("p", { class: "fn-muted fn-note", id: "fn-recurring" });
+  if (n.length) note.append(icon("bell", 14), ` Highlighted values are missing: ${n.map((r) => `${r.name} (${r.missing.join(", ")})`).join("; ")}.`);
+  else note.append("Every active payment has an amount and a due date.");
+  return note;
+}
+
 function recurringTable(rows: Recurring[]): HTMLElement {
   const patch = (r: Recurring, body: object) => send("PATCH", `/api/recurring/${r.id}`, body);
   return table({
     columns: ["Payment", "How often", "Due", "Amount", "Per month", "Category", "Active", ""],
     rows: rows.map((r) => [
       editable({ value: r.name, display: r.name, save: (v) => patch(r, { name: v }) }),
-      editable({ value: r.frequency, display: r.frequency === "annually" ? "Yearly" : "Monthly", type: "select", options: FREQ,
+      editable({ value: r.frequency, display: FREQ.find((f) => f.value === r.frequency)?.label ?? r.frequency, type: "select", options: FREQ,
         save: (v) => patch(r, { frequency: v }) }),
-      editable({
-        value: dueText(r, true), display: dueText(r) || "set", placeholder: r.frequency === "annually" ? "e.g. Feb 18" : "day, e.g. 9",
-        save: (v) => patch(r, parseDue(v)),
-      }),
-      editable({ value: r.amount, display: r.amount == null ? "set" : usd2(r.amount), type: "money", save: (v) => patch(r, { amount: parseMoney(v) }) }),
+      byDate(r)
+        ? editable({ value: r.start_date ?? "", display: dueText(r) || "Add date", type: "date", missing: r.missing.includes("due date"),
+            save: (v) => patch(r, { start_date: v || null }) })
+        : editable({
+            value: dueText(r, true), display: r.missing.includes("due date") ? (r.due_day ? `${dueText(r)} · add month` : "Add due date") : dueText(r),
+            missing: r.missing.includes("due date"),
+            placeholder: r.frequency === "monthly" ? "day, e.g. 9" : "a month it's due, e.g. Mar 14",
+            save: (v) => patch(r, parseDue(v)),
+          }),
+      editable({ value: r.amount, display: r.amount == null ? "Add amount" : usd2(r.amount), type: "money", missing: r.amount == null && !!r.active,
+        save: (v) => patch(r, { amount: parseMoney(v) }) }),
       usd2(r.monthly),
       editable({ value: r.category ?? "", display: r.category || "—", save: (v) => patch(r, { category: v }) }),
       editable({ value: String(r.active), display: r.active ? "Yes" : "No", type: "select",
@@ -137,10 +166,21 @@ function recurringTable(rows: Recurring[]): HTMLElement {
   });
 }
 
+/** "9th", "Feb 18th", "Mar, Sep 14th", "Fridays", "Every other Fri from Oct 3". `raw` is the editable text. */
 function dueText(r: Recurring, raw = false): string {
+  if (byDate(r)) {
+    if (!r.start_date) return "";
+    const d = new Date(`${r.start_date}T12:00:00`);
+    const wd = d.toLocaleDateString("en-US", { weekday: "short" });
+    return r.frequency === "weekly" ? `${wd}s` : `Every other ${wd} from ${monthName(d.getMonth() + 1)} ${d.getDate()}`;
+  }
   if (r.due_day == null) return "";
-  if (raw) return r.due_month ? `${monthName(r.due_month)} ${r.due_day}` : String(r.due_day);
-  return r.due_month ? `${monthName(r.due_month)} ${ordinal(r.due_day)}` : ordinal(r.due_day);
+  const monthly = r.frequency === "monthly";
+  if (raw) return r.due_month && !monthly ? `${monthName(r.due_month)} ${r.due_day}` : String(r.due_day);
+  if (monthly || !r.due_month) return ordinal(r.due_day);
+  const every = r.frequency === "quarterly" ? 3 : r.frequency === "semiannually" ? 6 : 12;
+  const months = Array.from({ length: 12 / every }, (_, i) => ((r.due_month! - 1 + i * every) % 12) + 1).sort((a, b) => a - b);
+  return `${months.map(monthName).join(", ")} ${ordinal(r.due_day)}`;
 }
 
 /** "9", "9th", "Feb 18", "2/18" → {due_day, due_month}. Empty clears it. */

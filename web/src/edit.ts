@@ -8,11 +8,13 @@ export type EditOpts = {
   type?: "money" | "number" | "text" | "date" | "select";
   options?: { value: string; label: string }[];
   placeholder?: string;
+  /** Highlight it as information still to fill in. */
+  missing?: boolean;
   save: (v: string) => Promise<unknown>;
 };
 
 export function editable(o: EditOpts): HTMLElement {
-  const span = h("span", { class: "fn-edit", tabindex: "0", title: "Click to edit" }, o.display);
+  const span = h("span", { class: o.missing ? "fn-edit fn-missing" : "fn-edit", tabindex: "0", title: "Click to edit" }, o.display);
   const open = () => {
     let input: HTMLInputElement | HTMLSelectElement;
     if (o.type === "select") {

@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import express, { NextFunction, Request, Response } from "express";
 import { db, filesDir, logActivity } from "./store";
-import { accountsWithLatest, debtSeries, netWorthSeries, overview, monthlyOf } from "./calc";
+import { accountsWithLatest, debtSeries, missingInfo, netWorthSeries, overview, monthlyOf } from "./calc";
 import { listBackups, runBackup } from "./backup";
 import { zip } from "./zip";
 
@@ -44,7 +44,7 @@ function update(table: string, key: string, id: unknown, fields: Record<string, 
 }
 
 const ACCOUNT = ["name", "kind", "institution", "last4", "sort", "closed", "notes"];
-const RECURRING = ["name", "frequency", "amount", "due_day", "due_month", "category", "active", "notes"];
+const RECURRING = ["name", "frequency", "amount", "due_day", "due_month", "start_date", "category", "active", "notes"];
 const INCOME = ["label", "amount", "per"];
 const DOCUMENT = ["doc_date", "type", "issuer", "description", "amount", "applied_to", "notes", "drive_url", "added_at"];
 
@@ -115,7 +115,7 @@ export function createApp() {
   app.get("/api/debt", (_req, res) => res.json({ series: debtSeries() }));
   app.get("/api/recurring", (_req, res) => {
     const rows = db().prepare("SELECT * FROM recurring ORDER BY active DESC, frequency DESC, amount DESC").all() as any[];
-    res.json({ recurring: rows.map((r) => ({ ...r, monthly: monthlyOf(r.amount, r.frequency) })) });
+    res.json({ recurring: rows.map((r) => ({ ...r, monthly: monthlyOf(r.amount, r.frequency), missing: missingInfo(r) })) });
   });
   app.get("/api/income", (_req, res) => res.json({ income: db().prepare("SELECT * FROM income").all() }));
   app.get("/api/notes", (_req, res) => res.json({ notes: db().prepare("SELECT * FROM period_notes ORDER BY as_of").all() }));
