@@ -34,7 +34,8 @@ is stored and backed up. Every change goes in an activity log.
   plus a "needs updating" list (accounts not logged recently, bills missing an
   amount or due date) and what's due in the next two weeks.
 - **Accounts:** every account by type with its latest balance, a form to log a
-  set of month-end balances, and a history chart and table for each account.
+  set of month-end balances, and a history chart and table for each account,
+  plus its latest breakdown (e.g. Roth vs pre-tax) when a statement gives one.
 - **Budget:** income and recurring payments, all editable in place, plus a
   "Rent & utilities" card for bills paid outside any statement (Venmo, cash):
   report each month's amount, with the receipt, and see the last six months.
@@ -83,6 +84,7 @@ debt.
 | `period_notes` | a note for a date ("holiday travel"), shown with that date's balances |
 | `recurring` | name, `monthly`/`annually`, amount, due day (and month for yearly items), category, active |
 | `income` | label, amount, per `week`/`month`/`year` |
+| `breakdowns` | how an account's balance splits on a date, in named groups (a 401(k) by Roth / pre-tax, by who put it in, by fund) |
 | `documents` | dates, type, issuer, description, amount, what it was applied to, notes, stored file or external link |
 | `activity` | timestamped one-line summary of every change |
 
@@ -97,6 +99,8 @@ POST   /api/accounts                     {id, name, kind, institution?, last4?}
 PATCH  /api/accounts/:id
 PUT    /api/balances                     {account_id, as_of, balance, rate?, document_id?}  or  {balances: [...]}
 DELETE /api/balances/:account/:as_of
+PUT    /api/breakdowns                   {account_id, as_of, document_id?, rows: [{group, label, amount, detail?}]}  replaces that date's split
+DELETE /api/breakdowns/:account/:as_of
 GET    /api/balances?kind=card           every balance joined with its account
 PUT    /api/notes/:as_of                 {note}  ("" removes it)
 GET    /api/recurring | POST | PATCH /:id | DELETE /:id

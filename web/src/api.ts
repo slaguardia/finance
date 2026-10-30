@@ -3,6 +3,10 @@ export type Account = {
   id: string; name: string; kind: string; institution: string | null; last4: string | null;
   sort: number; closed: number; notes: string | null; balance: number | null; rate: number | null; as_of: string | null; overdue: boolean;
 };
+export type Breakdown = {
+  as_of: string;
+  rows: { group: string; label: string; amount: number; detail: string | null; document_id: number | null; document: string | null }[];
+};
 export type Balance = { account_id: string; as_of: string; balance: number; rate: number | null; note?: string | null; document?: string | null };
 export type Recurring = {
   id: number; name: string; frequency: "monthly" | "annually"; amount: number | null; due_day: number | null;
@@ -38,7 +42,7 @@ export const send = <T = { ok: true }>(method: string, p: string, body?: unknown
 export const api = {
   overview: () => get<Overview>("/api/overview"),
   accounts: () => get<{ accounts: Account[] }>("/api/accounts").then((d) => d.accounts),
-  account: (id: string) => get<{ account: Account; balances: Balance[] }>(`/api/accounts/${encodeURIComponent(id)}`),
+  account: (id: string) => get<{ account: Account; balances: Balance[]; breakdown: Breakdown | null }>(`/api/accounts/${encodeURIComponent(id)}`),
   balances: (kind?: string) => get<{ balances: (Balance & { name: string; kind: string })[] }>(`/api/balances${kind ? `?kind=${kind}` : ""}`).then((d) => d.balances),
   recurring: () => get<{ recurring: Recurring[] }>("/api/recurring").then((d) => d.recurring),
   income: () => get<{ income: Income[] }>("/api/income").then((d) => d.income),

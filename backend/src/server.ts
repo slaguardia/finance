@@ -92,7 +92,14 @@ export function createApp() {
        LEFT JOIN period_notes n ON n.as_of=b.as_of LEFT JOIN documents d ON d.id=b.document_id
        WHERE b.account_id=? ORDER BY b.as_of DESC`
     ).all(req.params.id);
-    res.json({ account, balances });
+    // The latest breakdown (Roth vs pre-tax, funds…), if one was recorded.
+    const latest = (db().prepare("SELECT MAX(as_of) AS d FROM breakdowns WHERE account_id=?").get(req.params.id) as any)?.d;
+    const breakdown = latest ? {
+      as_of: latest,
+      rows: db().prepare(`SELECT k.grp AS "group", k.label, k.amount, k.detail, k.document_id, d.description AS document
+        FROM breakdowns k LEFT JOIN documents d ON d.id=k.document_id WHERE k.account_id=? AND k.as_of=? ORDER BY k.sort`).all(req.params.id, latest),
+    } : null;
+    res.json({ account, balances, breakdown });
   });
   // Every balance with its account, for charts that span accounts (e.g. cards by month).
   app.get("/api/balances", (req, res) => {
@@ -174,6 +181,27 @@ export function createApp() {
     if (note) db().prepare("INSERT INTO period_notes (as_of, note) VALUES (?, ?) ON CONFLICT (as_of) DO UPDATE SET note=excluded.note").run(req.params.as_of, note);
     else db().prepare("DELETE FROM period_notes WHERE as_of=?").run(req.params.as_of);
     changed(`Note for ${req.params.as_of}: ${note || "removed"}`);
+    res.json({ ok: true });
+  }));
+
+  // --- breakdowns: replace one account's split for one date ---
+  app.put("/api/breakdowns", wrap((req, res) => {
+    const { account_id, as_of, document_id = null } = req.body;
+    need(account_id, "account_id"); need(as_of, "as_of");
+    const rows = need(req.body.rows, "rows") as any[];
+    db().transaction(() => {
+      db().prepare("DELETE FROM breakdowns WHERE account_id=? AND as_of=?").run(account_id, as_of);
+      rows.forEach((r, i) => insert("breakdowns", {
+        account_id, as_of, grp: need(r.group, "group"), label: need(r.label, "label"),
+        amount: need(r.amount, "amount"), detail: r.detail ?? null, sort: i, document_id,
+      }));
+    })();
+    changed(`Breakdown for ${account_id} on ${as_of}: ${[...new Set(rows.map((r) => r.group))].join(", ")}`);
+    res.json({ ok: true, count: rows.length });
+  }));
+  app.delete("/api/breakdowns/:account/:as_of", wrap((req, res) => {
+    db().prepare("DELETE FROM breakdowns WHERE account_id=? AND as_of=?").run(req.params.account, req.params.as_of);
+    changed(`Removed breakdown for ${req.params.account} on ${req.params.as_of}`);
     res.json({ ok: true });
   }));
 

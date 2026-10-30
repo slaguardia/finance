@@ -12,7 +12,8 @@ only in the running container's `/data` volume and its backups.
 2. `scripts/fin POST /api/documents '{type, issuer, doc_date, description, amount?, notes?}'`
    then `scripts/fin upload <id> <file>` to store the file.
 3. Apply it: `PUT /api/balances` (with `document_id`), `POST`/`PATCH /api/recurring`,
-   `PATCH /api/income/:id`, or create the account first if it's new.
+   `PATCH /api/income/:id`, or create the account first if it's new. A statement
+   that splits the balance (401(k) sources, funds) → `PUT /api/breakdowns`.
    If a value conflicts with what's stored, say what's there vs the document and
    use the document's figure unless it's clearly older.
 4. `PATCH /api/documents/:id '{"applied_to": "..."}'` describing exactly what changed.

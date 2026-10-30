@@ -1,10 +1,10 @@
 import type { View } from "@brainbot/web-toolkit/shell";
 import { button, table } from "@brainbot/web-toolkit/components";
-import { api, send, type Account } from "../api";
+import { api, send, type Account, type Breakdown } from "../api";
 import { day, h, month, rate, shortMonth, todayIso, usd0, usd2 } from "../fmt";
 import { editable, parseMoney } from "../edit";
 import { lineChart } from "../chart";
-import { muted, pageHead, removeBtn, section, tile, tiles, type Tone } from "../ui";
+import { muted, pageHead, removeBtn, section, splitBar, tile, tiles, type Tone } from "../ui";
 import { icon } from "../icons";
 
 const KIND_LABEL: Record<string, string> = {
@@ -113,10 +113,28 @@ function addAccountForm(): HTMLElement {
   return section("Add an account", h("div", { class: "fn-row" }, name, kind, inst, add));
 }
 
+const SPLIT_TONES: Tone[] = ["accent", "link", "yes", "maybe", "no"];
+
+/** One split bar per group (tax treatment, who put it in, funds), with any detail lines under it. */
+function breakdownCard(b: Breakdown): HTMLElement {
+  const groups = [...new Set(b.rows.map((r) => r.group))];
+  const source = b.rows.find((r) => r.document)?.document;
+  return section("Breakdown",
+    h("p", { class: "fn-muted fn-note" }, `As of ${day(b.as_of)}${source ? ` · from ${source}` : ""}`),
+    ...groups.map((g) => {
+      const rows = b.rows.filter((r) => r.group === g);
+      const details = rows.filter((r) => r.detail);
+      return h("div", { class: "fn-breakdown" },
+        h("h3", {}, g),
+        splitBar(rows.map((r, i) => ({ label: r.label, value: r.amount, tone: SPLIT_TONES[i % SPLIT_TONES.length], text: usd2(r.amount) }))),
+        details.length ? h("ul", { class: "fn-breakdown-notes" }, ...details.map((r) => h("li", {}, h("b", {}, r.label), " ", r.detail!))) : null);
+    }));
+}
+
 export const AccountView = (): View => ({
   async mount(el) {
     const id = decodeURIComponent(location.hash.replace(/^#account\//, ""));
-    const { account: a, balances } = await api.account(id);
+    const { account: a, balances, breakdown } = await api.account(id);
     const pts = [...balances].reverse();
     el.replaceChildren(
       pageHead(a.name, h("span", {}, `${KIND_LABEL[a.kind] ?? a.kind}${a.institution ? ` · ${a.institution}` : ""} · `, h("a", { href: "#accounts" }, "all accounts"))),
@@ -124,6 +142,7 @@ export const AccountView = (): View => ({
         label: shortMonth(b.as_of), value: b.balance, t: Date.parse(b.as_of),
         tip: `${day(b.as_of)}: ${usd2(b.balance)}${b.note ? `\n${b.note}` : ""}`,
       })), { width: 1400, height: 260 }) : muted("No balances yet.")),
+      ...(breakdown ? [breakdownCard(breakdown)] : []),
       section("Balances", table({
         columns: ["As of", "Balance", "Rate", "Note", "From document", ""],
         rows: balances.map((b) => [
