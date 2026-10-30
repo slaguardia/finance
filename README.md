@@ -35,16 +35,22 @@ is stored and backed up. Every change goes in an activity log.
   amount or due date) and what's due in the next two weeks.
 - **Accounts:** every account by type with its latest balance, a form to log a
   set of month-end balances, and a history chart and table for each account.
-- **Budget:** income and recurring payments, all editable in place.
+- **Budget:** income and recurring payments, all editable in place, plus a
+  "Rent & utilities" card for bills paid outside any statement (Venmo, cash):
+  report each month's amount, with the receipt, and see the last six months.
 - **Debt:** each loan's balance, rate and status, the payoff chart, and the
   interest accruing each month.
-- **Documents:** the catalog, with drag-and-drop upload (several files at once).
+- **Documents:** a grid of which statements are on file for each account, month
+  by month; a zip export of every statement since a date; and the catalog, with
+  drag-and-drop upload (several files at once).
   Anything not yet applied shows "Not filed yet" until the agent reads it.
 - **Log:** every change, plus the nightly backups and a "back up now" button.
 
 Net worth is fresh asset balances minus fresh card balances. A balance older
 than `STALE_DAYS` (92 by default) stops counting and shows up as a gap, rather
-than quietly carrying an old number forward. Loans are tracked separately as
+than quietly carrying an old number forward. The chart only plots dates where
+every account has a fresh balance, except that a small account added later
+(under 2% of assets) doesn't erase the dates before it was tracked. Loans are tracked separately as
 debt.
 
 ## How it's built
@@ -94,10 +100,12 @@ DELETE /api/balances/:account/:as_of
 GET    /api/balances?kind=card           every balance joined with its account
 PUT    /api/notes/:as_of                 {note}  ("" removes it)
 GET    /api/recurring | POST | PATCH /:id | DELETE /:id
+POST   /api/recurring/:id/report         {doc_date, amount}  one month's bill (rent, utilities): catalogued, becomes the amount
 GET    /api/income    | POST | PATCH /:id | DELETE /:id
 GET    /api/documents | POST {…metadata} | PATCH /:id | DELETE /:id
 PUT    /api/documents/:id/file           raw body, Content-Type + X-Filename headers
 GET    /api/documents/:id/file
+GET    /api/documents/export?since=YYYY-MM-DD   every stored statement since that date, as a zip
 POST   /api/import                       {accounts, balances, notes, recurring, income, documents, source?}
 GET    /api/backups | POST /api/backups
 GET    /api/activity | /api/events (SSE) | /api/me | /healthz

@@ -8,6 +8,7 @@ import express, { NextFunction, Request, Response } from "express";
 import { db, filesDir, logActivity } from "./store";
 import { accountsWithLatest, debtSeries, netWorthSeries, overview, monthlyOf } from "./calc";
 import { listBackups, runBackup } from "./backup";
+import { zip } from "./zip";
 
 const usd = (n: number | null | undefined) =>
   n == null ? "—" : n.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -111,8 +112,29 @@ export function createApp() {
   });
   app.get("/api/income", (_req, res) => res.json({ income: db().prepare("SELECT * FROM income").all() }));
   app.get("/api/notes", (_req, res) => res.json({ notes: db().prepare("SELECT * FROM period_notes ORDER BY as_of").all() }));
+  // account_ids: the accounts whose balances a document set (comma-separated), which ties a statement to its account.
   app.get("/api/documents", (_req, res) =>
-    res.json({ documents: db().prepare("SELECT * FROM documents ORDER BY COALESCE(doc_date, added_at) DESC, id DESC").all() }));
+    res.json({ documents: db().prepare(`SELECT d.*, (SELECT group_concat(DISTINCT b.account_id) FROM balances b WHERE b.document_id=d.id) AS account_ids
+      FROM documents d ORDER BY COALESCE(d.doc_date, d.added_at) DESC, d.id DESC`).all() }));
+  // Every stored statement dated on or after ?since=YYYY-MM-DD, as one zip.
+  app.get("/api/documents/export", wrap((req, res) => {
+    const since = String(req.query.since ?? "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(since)) throw new Bad("since must be a date like 2026-08-01");
+    const docs = db().prepare(`SELECT * FROM documents WHERE file_sha IS NOT NULL AND type LIKE '%statement%'
+      AND COALESCE(doc_date, added_at) >= ? ORDER BY COALESCE(doc_date, added_at), id`).all(since) as any[];
+    const used = new Set<string>();
+    const files = docs.filter((d) => fs.existsSync(path.join(filesDir, d.file_sha + d.file_ext))).map((d) => {
+      const date = d.doc_date ?? d.added_at;
+      const base = `${date} ${[d.issuer, d.description ?? d.type].filter(Boolean).join(" - ")}`.replace(/[\/\\:*?"<>|]+/g, "-").slice(0, 150);
+      let name = base + d.file_ext;
+      for (let i = 2; used.has(name); i++) name = `${base} (${i})${d.file_ext}`;
+      used.add(name);
+      return { name, data: fs.readFileSync(path.join(filesDir, d.file_sha + d.file_ext)), date: new Date(`${date}T12:00:00`) };
+    });
+    res.set("Content-Type", "application/zip");
+    res.set("Content-Disposition", `attachment; filename="statements-since-${since}.zip"`);
+    res.send(zip(files));
+  }));
   app.get("/api/activity", (_req, res) => res.json({ activity: db().prepare("SELECT * FROM activity ORDER BY id DESC LIMIT 200").all() }));
   app.get("/api/backups", (_req, res) => res.json({ backups: listBackups() }));
 
@@ -160,6 +182,24 @@ export function createApp() {
     need(req.body.name, "name"); need(req.body.frequency, "frequency");
     const id = insert("recurring", pick(req.body, RECURRING));
     changed(`Added recurring ${req.body.name} (${usd(req.body.amount)} ${req.body.frequency})`);
+    res.status(201).json({ id });
+  }));
+  // Report what a bill came to for one month (rent, utilities): catalog it as a Bill and make it the bill's current amount.
+  app.post("/api/recurring/:id/report", wrap((req, res) => {
+    const r = db().prepare("SELECT * FROM recurring WHERE id=?").get(req.params.id) as any;
+    if (!r) throw new Bad("bill not found");
+    const amount = Number(need(req.body.amount, "amount"));
+    const doc_date = String(need(req.body.doc_date, "doc_date"));
+    if (!Number.isFinite(amount)) throw new Bad("amount must be a number");
+    const id = db().transaction(() => {
+      const id = insert("documents", {
+        type: "Bill", issuer: r.name, doc_date, amount, description: `${r.name}, ${doc_date.slice(0, 7)}`,
+        notes: req.body.notes || null, applied_to: `${r.name} amount → ${usd(amount)}`,
+      });
+      update("recurring", "id", r.id, { amount });
+      return id;
+    })();
+    changed(`Reported ${r.name} ${usd(amount)} for ${doc_date.slice(0, 7)}`);
     res.status(201).json({ id });
   }));
   app.patch("/api/recurring/:id", wrap((req, res) => {

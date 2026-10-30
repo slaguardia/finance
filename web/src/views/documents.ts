@@ -1,16 +1,18 @@
 import type { View } from "@brainbot/web-toolkit/shell";
 import { button, table } from "@brainbot/web-toolkit/components";
-import { api, send, type Doc } from "../api";
-import { day, h, todayIso, usd2 } from "../fmt";
+import { api, send, type Account, type Doc } from "../api";
+import { day, h, lastMonths, shortMonth, todayIso, usd2 } from "../fmt";
 import { editable, parseMoney } from "../edit";
 import { pageHead, removeBtn, section } from "../ui";
 import { icon } from "../icons";
+import { isDone, KIND_ICON, KIND_TONE } from "./accounts";
 
 export const DocumentsView = (): View => ({
   async mount(el) {
-    const docs = await api.documents();
+    const [docs, accounts] = await Promise.all([api.documents(), api.accounts()]);
     el.replaceChildren(
       pageHead("Documents", "Every statement, bill and form, with what it changed. Drop files here, then ask Claude to file them."),
+      statementGrid(docs.filter(isStatement), accounts),
       uploadForm(),
       section(`Catalog (${docs.length})`, table({
         columns: ["Date", "Type", "From", "Description", "Amount", "Applied to", "Notes", ""],
@@ -29,6 +31,69 @@ export const DocumentsView = (): View => ({
     );
   },
 });
+
+const isStatement = (d: Doc) => /statement/i.test(d.type ?? "");
+const monthOf = (d: Doc) => (d.doc_date ?? d.added_at).slice(0, 7);
+
+/**
+ * One row per institution with open accounts, one column per month for the last year. A statement belongs to the
+ * account whose balance it set; one that set none (a second checking account, a term policy) goes to the row
+ * whose institution matches its issuer.
+ */
+function statementGrid(docs: Doc[], accounts: Account[]): HTMLElement {
+  const months = lastMonths(12);
+  const key = (a: Account) => a.institution || a.name;
+  const rows = new Map<string, { accounts: Account[]; docs: Doc[] }>();
+  for (const a of accounts.filter((a) => !isDone(a))) {
+    if (!rows.has(key(a))) rows.set(key(a), { accounts: [], docs: [] });
+    rows.get(key(a))!.accounts.push(a);
+  }
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const other: Doc[] = [];
+  for (const d of docs) {
+    const linked = (d.account_ids ?? "").split(",").map((id) => byId.get(id)).find((a) => a && rows.has(key(a)));
+    const issuer = (d.issuer ?? "").toLowerCase();
+    const k = linked ? key(linked) : [...rows.keys()].find((k) => issuer && (issuer.startsWith(k.toLowerCase()) || k.toLowerCase().startsWith(issuer)));
+    (k ? rows.get(k)!.docs : other).push(d);
+  }
+
+  const cells = (ds: Doc[]) => months.map((m) => {
+    const here = ds.filter((d) => monthOf(d) === m);
+    return h("td", {}, ...(here.length ? here.map((d) => d.file_name
+      ? h("a", { class: "fn-stmt", href: `/api/documents/${d.id}/file`, target: "_blank", rel: "noopener", title: d.description ?? "" }, String(Number((d.doc_date ?? d.added_at).slice(8, 10))))
+      : h("span", { class: "fn-stmt", title: d.description ?? "" }, String(Number((d.doc_date ?? d.added_at).slice(8, 10)))))
+      : [h("span", { class: "fn-stmt-none" }, "·")]));
+  });
+  const head = h("tr", {}, h("th", {}, "Account"), ...months.map((m) => h("th", {}, shortMonth(m))));
+  const body = [...rows].map(([k, r]) => {
+    const kind = r.accounts[0].kind;
+    const names = r.accounts.map((a) => a.name).filter((n) => n !== k);
+    return h("tr", { class: `fn-tone-${KIND_TONE[kind]}` },
+      h("td", {}, h("div", { class: "fn-srow" }, h("span", { class: "fn-chip" }, icon(KIND_ICON[kind], 16)),
+        h("div", {}, k, names.length ? h("small", {}, names.length > 2 ? `${names.length} accounts` : names.join(", ")) : null))),
+      ...cells(r.docs));
+  });
+  if (other.length) body.push(h("tr", { class: "fn-tone-link" },
+    h("td", {}, h("div", { class: "fn-srow" }, h("span", { class: "fn-chip" }, icon("file", 16)), h("div", {}, "Other statements"))), ...cells(other)));
+
+  return section("Statements by month",
+    h("p", { class: "fn-muted fn-note" }, "Each number is the statement's date; click it to open the file. A dot means no statement on file for that month."),
+    h("div", { class: "fn-scroll" }, h("table", { class: "fn-sgrid" }, h("thead", {}, head), h("tbody", {}, ...body))),
+    exportForm(docs));
+}
+
+/** Download every stored statement since the start of a recent month, as one zip. */
+function exportForm(docs: Doc[]): HTMLElement {
+  const starts = [1, 2, 5, 11].map((back) => lastMonths(back + 1)[0] + "-01");
+  const count = (since: string) => docs.filter((d) => d.file_name && (d.doc_date ?? d.added_at) >= since).length;
+  const pickSince = h("select", { class: "fn-input" }, ...starts.map((s, i) =>
+    h("option", { value: s, ...(i === 1 ? { selected: "" } : {}) }, `Since ${day(s)} (${count(s)} statements)`)));
+  const go = button({ label: "Download zip", variant: "primary", onClick: () => {
+    if (!count(pickSince.value)) return alert("No stored statements in that range yet.");
+    location.href = `/api/documents/export?since=${pickSince.value}`;
+  } });
+  return h("div", { class: "fn-export" }, icon("download", 18), h("span", {}, "Export statements"), pickSince, go);
+}
 
 const baseName = (f: File) => f.name.replace(/\.[^.]+$/, "");
 const patch = (d: Doc, body: object) => send("PATCH", `/api/documents/${d.id}`, body);

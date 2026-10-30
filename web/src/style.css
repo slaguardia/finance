@@ -62,11 +62,11 @@ main.cap-main { padding: 30px 40px 56px; }
 .fn-tile-sub a { color: var(--link); text-decoration: none; }
 
 /* one tint per tone: chip background + icon color */
-.fn-tone-accent :is(.fn-chip, .fn-avatar) { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
-.fn-tone-link :is(.fn-chip, .fn-avatar) { background: var(--link-bg); color: var(--link); }
-.fn-tone-yes :is(.fn-chip, .fn-avatar) { background: var(--yes-bg); color: var(--yes); }
-.fn-tone-maybe :is(.fn-chip, .fn-avatar) { background: var(--maybe-bg); color: var(--maybe); }
-.fn-tone-no :is(.fn-chip, .fn-avatar) { background: var(--no-bg); color: var(--no); }
+.fn-tone-accent :is(.fn-chip, .fn-avatar, .fn-stmt) { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.fn-tone-link :is(.fn-chip, .fn-avatar, .fn-stmt) { background: var(--link-bg); color: var(--link); }
+.fn-tone-yes :is(.fn-chip, .fn-avatar, .fn-stmt) { background: var(--yes-bg); color: var(--yes); }
+.fn-tone-maybe :is(.fn-chip, .fn-avatar, .fn-stmt) { background: var(--maybe-bg); color: var(--maybe); }
+.fn-tone-no :is(.fn-chip, .fn-avatar, .fn-stmt) { background: var(--no-bg); color: var(--no); }
 .fn-bg-accent { background: var(--accent); }
 .fn-bg-link { background: var(--link); }
 .fn-bg-yes { background: var(--yes); }
@@ -127,6 +127,26 @@ main.cap-main { padding: 30px 40px 56px; }
 .fn-done a { color: var(--fg-muted); text-decoration: none; }
 .fn-done a:hover { color: var(--link); }
 
+/* ---- month grids: statements on file, rent & utilities reported ---- */
+.fn-note { margin: -6px 0 14px; font-size: 13.5px; }
+.fn-scroll { overflow-x: auto; margin: 0 -8px; }
+.fn-sgrid { border-collapse: collapse; width: 100%; font-size: 13px; }
+.fn-sgrid th { font-weight: 500; color: var(--fg-faint); font-size: 12px; padding: 6px 4px 10px; text-align: center; white-space: nowrap; }
+.fn-sgrid td { padding: 8px 4px; text-align: center; border-top: 1px solid var(--hairline); white-space: nowrap; }
+.fn-sgrid th:first-child, .fn-sgrid td:first-child { text-align: left; position: sticky; left: 0; z-index: 1; background: var(--card); padding-left: 8px; min-width: 170px; }
+.fn-sgrid th:last-child, .fn-sgrid td:last-child { padding-right: 8px; }
+.fn-srow { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--fg); font-size: 14px; }
+.fn-srow .fn-chip { width: 30px; height: 30px; border-radius: 9px; flex: none; }
+.fn-srow small { display: block; color: var(--fg-faint); font-size: 12px; font-weight: 400; margin-top: 1px; }
+.fn-stmt { display: inline-grid; place-items: center; min-width: 30px; height: 26px; padding: 0 7px; border-radius: 8px; font-family: var(--font-num); font-weight: 700; font-size: 12px; text-decoration: none; }
+.fn-stmt + .fn-stmt { margin-left: 3px; }
+a.fn-stmt:hover { filter: brightness(1.25); }
+.fn-stmt-none { color: var(--fg-faint); opacity: 0.45; font-size: 18px; line-height: 1; }
+.fn-export { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--hairline); color: var(--fg-muted); font-size: 14px; }
+.fn-export .fn-icon { color: var(--accent); }
+.fn-report { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--hairline); display: grid; gap: 12px; justify-items: start; }
+.fn-report .fn-form-grid { width: 100%; }
+
 /* ---- lists ---- */
 .fn-list { list-style: none; margin: 0; padding: 0; }
 .fn-list li { padding: 10px 0; border-bottom: 1px solid var(--hairline); font-size: 14px; color: var(--fg); }
@@ -157,6 +177,7 @@ td .fn-input { width: 100%; max-width: 14em; padding: 5px 8px; }
 .fn-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--fg-muted); }
 .fn-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 14px 0; }
 .fn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fn-row[hidden] { display: none; }
 .fn-card > .fn-field { max-width: 220px; }
 .tk-btn { border-radius: 10px; padding: 8px 14px; font-weight: 600; }
 
@@ -181,4 +202,5 @@ td .fn-input { width: 100%; max-width: 14em; padding: 5px 8px; }
   .fn-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .fn-tile { padding: 14px 16px 12px; }
   .fn-tile-value { font-size: 22px; margin: 10px 0 4px; }
+  .fn-sgrid th:first-child, .fn-sgrid td:first-child { min-width: 132px; }
 }

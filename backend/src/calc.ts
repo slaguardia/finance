@@ -50,10 +50,20 @@ export function netWorthSeries() {
   const assets = data.accounts.filter((a) => !isDebt(a) && !isCard(a) && !a.closed).map((a) => a.id);
   const dates = [...new Set(data.balances.filter((b) => nonLoan.has(b.account_id)).map((b) => b.as_of))].sort();
   // Only plot dates where every open asset account has a fresh value; earlier
-  // dates would undercount (most accounts weren't tracked yet).
-  return dates
+  // dates would undercount (most accounts weren't tracked yet). The exception:
+  // a small account first logged later (under 2% of assets then, like an HSA
+  // added after the fact) doesn't erase the dates before it was tracked.
+  const lateSmall = new Map<string, string>();
+  for (const id of assets) {
+    const first = data.byAccount.get(id)?.[0];
+    if (first && first.balance < 0.02 * netWorthAt(data, first.as_of).value) lateSmall.set(id, first.as_of);
+  }
+  // One point per month (its latest date), so statements closing mid-month
+  // don't add points where half the accounts still carry older values.
+  const monthly = [...new Map(dates.map((d) => [d.slice(0, 7), d])).values()];
+  return monthly
     .map((d) => ({ as_of: d, ...netWorthAt(data, d) }))
-    .filter((p) => assets.every((id) => !p.missing.includes(id)));
+    .filter((p) => assets.every((id) => !p.missing.includes(id) || (lateSmall.get(id) ?? "") > p.as_of));
 }
 
 export function debtSeries() {

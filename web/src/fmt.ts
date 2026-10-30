@@ -21,6 +21,14 @@ export const month = (iso: string) => {
   const [y, m] = iso.split("-").map(Number);
   return `${MONTHS[m - 1]} ${y}`;
 };
+/** The last `n` calendar months, oldest first, ending with this one: ["2025-11", …, "2026-10"]. */
+export function lastMonths(n: number): string[] {
+  const [y, m] = todayIso().split("-").map(Number);
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(y, m - 1 - (n - 1 - i), 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+}
 export const shortMonth = (iso: string) => {
   const [y, m] = iso.split("-").map(Number);
   return `${MONTHS[m - 1]} ’${String(y).slice(2)}`;

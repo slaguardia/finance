@@ -12,10 +12,10 @@ const KIND_LABEL: Record<string, string> = {
 };
 const KINDS = Object.keys(KIND_LABEL);
 /** Each kind gets its own color and icon, so the groups read apart at a glance. */
-const KIND_TONE: Record<string, Tone> = { cash: "yes", investment: "link", retirement: "accent", insurance: "link", card: "maybe", loan: "no" };
-const KIND_ICON: Record<string, string> = { cash: "wallet", investment: "up", retirement: "piggy", insurance: "shield", card: "card", loan: "down" };
+export const KIND_TONE: Record<string, Tone> = { cash: "yes", investment: "link", retirement: "accent", insurance: "link", card: "maybe", loan: "no" };
+export const KIND_ICON: Record<string, string> = { cash: "wallet", investment: "up", retirement: "piggy", insurance: "shield", card: "card", loan: "down" };
 
-const isDone = (a: Account) => !!a.closed || (a.kind === "loan" && a.balance === 0);
+export const isDone = (a: Account) => !!a.closed || (a.kind === "loan" && a.balance === 0);
 const sum = (as: Account[]) => as.reduce((s, a) => s + (a.balance ?? 0), 0);
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 

@@ -12,7 +12,7 @@ export type Income = { id: number; label: string; amount: number; per: "week" | 
 export type Doc = {
   id: number; added_at: string; doc_date: string | null; type: string | null; issuer: string | null; description: string | null;
   amount: number | null; applied_to: string | null; notes: string | null; drive_url: string | null;
-  file_name: string | null; mime: string | null; size: number | null;
+  file_name: string | null; mime: string | null; size: number | null; account_ids: string | null;
 };
 export type Activity = { id: number; at: string; summary: string };
 export type DebtPoint = { as_of: string; by: Record<string, number>; total: number };
