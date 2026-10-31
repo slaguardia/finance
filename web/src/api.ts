@@ -20,6 +20,8 @@ export type Doc = {
   file_name: string | null; mime: string | null; size: number | null; account_ids: string | null;
 };
 export type Activity = { id: number; at: string; summary: string };
+export type AccessKey = { id: string; label: string; created_at: string; last_used_at: string | null };
+export type BacklogItem = { id: number; title: string; details: string | null; status: "open" | "done"; source: "dashboard" | "claude"; created_at: string; done_at: string | null };
 export type DebtPoint = { as_of: string; by: Record<string, number>; total: number };
 export type Overview = {
   net_worth: { value: number; as_of: string; change: number | null; prev_as_of: string | null } | null;
@@ -49,6 +51,8 @@ export const api = {
   income: () => get<{ income: Income[] }>("/api/income").then((d) => d.income),
   documents: () => get<{ documents: Doc[] }>("/api/documents").then((d) => d.documents),
   activity: () => get<{ activity: Activity[] }>("/api/activity").then((d) => d.activity),
+  keys: () => get<{ keys: AccessKey[] }>("/api/keys").then((d) => d.keys),
+  backlog: () => get<{ backlog: BacklogItem[] }>("/api/backlog").then((d) => d.backlog),
   backups: () => get<{ backups: { name: string; size: number }[] }>("/api/backups").then((d) => d.backups),
   setBalance: (b: { account_id: string; as_of: string; balance: number; rate?: number | null }) => send("PUT", "/api/balances", b),
   uploadFile: (id: number, file: File) =>

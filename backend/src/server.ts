@@ -1,6 +1,7 @@
-// HTTP server: JSON /api/* + /api/me + /healthz, and the built PWA at / (SPA
-// fallback). Every write logs one activity line and pings /api/events so open
-// pages refresh themselves.
+// HTTP server: JSON /api/* + /api/me + /healthz, the Claude connector at /mcp,
+// and the built PWA at / (SPA fallback). Every write logs one activity line and
+// pings /api/events so open pages refresh themselves.
+import { AsyncLocalStorage } from "node:async_hooks";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -9,13 +10,19 @@ import { db, filesDir, logActivity } from "./store";
 import { accountsWithLatest, debtSeries, missingInfo, netWorthSeries, overview, monthlyOf } from "./calc";
 import { listBackups, runBackup } from "./backup";
 import { zip } from "./zip";
+import { handleMcp } from "./mcp";
+import { createKey, listKeys, revokeKey } from "./keys";
+import { addBacklog, listBacklog, removeBacklog, updateBacklog } from "./backlog";
 
 const usd = (n: number | null | undefined) =>
   n == null ? "—" : n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 // --- change feed (SSE) ---
 const listeners = new Set<Response>();
+/** Set while handling a request the Claude connector made, so its changes read "(via Claude)" in the Log. */
+const viaClaude = new AsyncLocalStorage<true>();
 function changed(summary: string): void {
+  if (viaClaude.getStore()) summary += " (via Claude)";
   logActivity(summary);
   for (const res of listeners) res.write(`event: changed\ndata: ${JSON.stringify({ summary })}\n\n`);
 }
@@ -68,6 +75,49 @@ function insert(table: string, fields: Record<string, unknown>): number {
 export function createApp() {
   const app = express();
   app.use(express.json({ limit: "5mb" }));
+  // Only the connector's own in-process calls (from localhost) can carry the tag.
+  app.use((req, _res, next) => (req.header("x-via") === "claude" && req.socket.remoteAddress?.match(/^(::ffff:)?127\.0\.0\.1$|^::1$/) ? viaClaude.run(true, next) : next()));
+
+  // --- the Claude connector (outside the Google login; the key is the lock) ---
+  app.all(["/mcp", "/mcp/:key"], (req, res) => {
+    handleMcp(req, res).catch((e) => { console.error("[mcp]", e); if (!res.headersSent) res.status(500).json({ error: "connector error" }); });
+  });
+
+  // --- Claude access keys (behind the Google login like the rest of /api) ---
+  app.get("/api/keys", (_req, res) => res.json({ keys: listKeys() }));
+  app.post("/api/keys", wrap((req, res) => {
+    const k = createKey(String(need(req.body.label, "label")).slice(0, 80));
+    // Logged without the live-refresh ping: a re-render would wipe the page showing the key its one time.
+    logActivity(`Created Claude access key "${k.label}"`);
+    res.status(201).json(k);
+  }));
+  app.delete("/api/keys/:id", wrap((req, res) => {
+    const k = listKeys().find((k) => k.id === req.params.id);
+    if (!k || !revokeKey(k.id)) throw new Bad("key not found");
+    changed(`Revoked Claude access key "${k.label}"`);
+    res.json({ ok: true });
+  }));
+
+  // --- backlog: ideas for the app itself ---
+  app.get("/api/backlog", (_req, res) => res.json({ backlog: listBacklog() }));
+  app.post("/api/backlog", wrap((req, res) => {
+    const item = addBacklog(String(need(req.body.title, "title")).trim(), req.body.details?.trim() || null, viaClaude.getStore() ? "claude" : "dashboard");
+    changed(`Added to backlog: ${item.title}`);
+    res.status(201).json(item);
+  }));
+  app.patch("/api/backlog/:id", wrap((req, res) => {
+    if (req.body.status !== undefined && !["open", "done"].includes(req.body.status)) throw new Bad("status must be open or done");
+    const item = updateBacklog(Number(req.params.id), pick(req.body, ["title", "details", "status"]) as any);
+    if (!item) throw new Bad("backlog item not found");
+    changed(req.body.status === "done" ? `Done: ${item.title}` : req.body.status === "open" ? `Reopened: ${item.title}` : `Updated backlog item: ${item.title}`);
+    res.json(item);
+  }));
+  app.delete("/api/backlog/:id", wrap((req, res) => {
+    const item = removeBacklog(Number(req.params.id));
+    if (!item) throw new Bad("backlog item not found");
+    changed(`Removed from backlog: ${item.title}`);
+    res.json({ ok: true });
+  }));
 
   app.get("/api/me", (req, res) => {
     const email = (req.header("X-Auth-Request-Email") || "").trim();

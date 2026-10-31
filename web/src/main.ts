@@ -9,6 +9,7 @@ import { BudgetView } from "./views/budget";
 import { DebtView } from "./views/debt";
 import { DocumentsView } from "./views/documents";
 import { LogView } from "./views/log";
+import { BacklogView } from "./views/backlog";
 import { startLive } from "./live";
 import { icon } from "./icons";
 
@@ -19,6 +20,7 @@ const routes: Record<string, () => View> = {
   "budget": BudgetView,
   "debt": DebtView,
   "documents": DocumentsView,
+  "backlog": BacklogView,
   "log": LogView,
 };
 
@@ -31,6 +33,7 @@ mountApp(routes, {
     { label: "Budget", href: "#budget" },
     { label: "Debt", href: "#debt" },
     { label: "Documents", href: "#documents" },
+    { label: "Backlog", href: "#backlog" },
     { label: "Log", href: "#log" },
   ],
 });
@@ -40,9 +43,13 @@ decorateChrome();
 // Icons on the nav pills + the app icon beside the wordmark, and keep "Overview"
 // lit on the home route (the shell doesn't mark the "" route as current).
 function decorateChrome(): void {
-  const icons: Record<string, string> = { "#": "home", "#accounts": "wallet", "#budget": "pie", "#debt": "down", "#documents": "file", "#log": "clock" };
+  const icons: Record<string, string> = { "#": "home", "#accounts": "wallet", "#budget": "pie", "#debt": "down", "#documents": "file", "#backlog": "list", "#log": "clock" };
   for (const a of Array.from(document.querySelectorAll<HTMLAnchorElement>(".cap-nav a"))) {
-    a.prepend(icon(icons[a.getAttribute("href") ?? ""] ?? "home", 18));
+    // The label goes in a span so the phone tab bar can swap in a shorter word where it has one.
+    const label = document.createElement("span");
+    label.textContent = a.textContent;
+    if (a.getAttribute("href") === "#documents") label.dataset.short = "Docs";
+    a.replaceChildren(icon(icons[a.getAttribute("href") ?? ""] ?? "home", 18), label);
   }
   const brand = document.querySelector(".brand");
   const logo = document.createElement("img");

@@ -46,7 +46,10 @@ is stored and backed up. Every change goes in an activity log.
   by month; a zip export of every statement since a date; and the catalog, with
   drag-and-drop upload (several files at once).
   Anything not yet applied shows "Not filed yet" until the agent reads it.
-- **Log:** every change, plus the nightly backups and a "back up now" button.
+- **Backlog:** ideas for making the dashboard better, added on the page or by
+  Claude through the connector; tick them off as they ship.
+- **Log:** every change, the nightly backups and a "back up now" button, and
+  the Claude access keys (create, see when each was last used, revoke).
 
 Net worth is fresh asset balances minus fresh card balances. A balance older
 than `STALE_DAYS` (92 by default) stops counting and shows up as a gap, rather
@@ -113,8 +116,29 @@ GET    /api/documents/:id/file
 GET    /api/documents/export?since=YYYY-MM-DD   every stored statement since that date, as a zip
 POST   /api/import                       {accounts, balances, notes, recurring, income, documents, source?}
 GET    /api/backups | POST /api/backups
+GET    /api/backlog   | POST {title, details?} | PATCH /:id {title?, details?, status?} | DELETE /:id
+GET    /api/keys      | POST {label} → {key} (shown once) | DELETE /:id
 GET    /api/activity | /api/events (SSE) | /api/me | /healthz
 ```
+
+## Talking to it from a Claude chat
+
+`/mcp` is an [MCP](https://modelcontextprotocol.io) server, so a Claude chat can
+read the record and make small edits. Create a key on the Log page, then either
+add `https://<host>/mcp/<key>` as a custom connector in claude.ai, or run
+`claude mcp add --transport http finance https://<host>/mcp --header "Authorization: Bearer <key>"`
+for Claude Code.
+
+Tools: `get_overview`, `list_accounts`, `get_account_history`, `get_budget`,
+`get_trends`, `get_recent_changes` to read; `log_balance`, `add_bill`,
+`update_bill`, `report_bill_payment`, `add_income`, `update_income` to edit;
+`list_backlog`, `add_backlog_item` for the backlog. Nothing deletes, documents
+stay out, and every edit lands in the Log marked "(via Claude)".
+
+The edge has to let `/mcp` through without its own login (claude.ai calls it
+from Anthropic's servers), so the key is the only lock there. Only a SHA-256 of
+each key is stored (`DATA_DIR/access-keys.json`); revoking one cuts it off on
+the next request.
 
 `scripts/fin` calls the API from the host over the Docker network:
 

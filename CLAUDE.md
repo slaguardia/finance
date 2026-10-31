@@ -27,6 +27,16 @@ type, issuer and doc_date with `PATCH`).
 
 `GET /api/overview` → `gaps` is the check-in list.
 
+## The Claude connector and the backlog
+
+`/mcp` (`backend/src/mcp.ts`) lets a Claude chat with an access key read the
+record and make safe edits; it calls this app's own `/api`, so edits get the
+same checks and are logged "(via Claude)". Keep it that way: no delete tools,
+no documents. Keys live hashed in `DATA_DIR/access-keys.json` (`keys.ts`); the
+backlog of app ideas in `DATA_DIR/backlog.json` (`backlog.ts`). When asked
+"what's on the backlog", `GET /api/backlog`; mark an item done with
+`PATCH /api/backlog/:id '{"status":"done"}'` once it ships.
+
 ## Changing the app
 
 - Backend: `backend/src/` — `server.ts` (routes), `calc.ts` (every derived
