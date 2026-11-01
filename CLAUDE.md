@@ -31,8 +31,10 @@ type, issuer and doc_date with `PATCH`).
 
 `/mcp` (`backend/src/mcp.ts`) lets a Claude chat with an access key read the
 record and make safe edits; it calls this app's own `/api`, so edits get the
-same checks and are logged "(via Claude)". Keep it that way: no delete tools,
-no documents. Keys live hashed in `DATA_DIR/access-keys.json` (`keys.ts`); the
+same checks and are logged "(via Claude)". It can file a document the chat was
+shown (catalog metadata, `document_id` on balances) but only changes entries not
+filed yet. Keep it that way: no delete tools, and no tool that returns a stored
+file, since a leaked key must not hand over tax forms. Keys live hashed in `DATA_DIR/access-keys.json` (`keys.ts`); the
 backlog of app ideas in `DATA_DIR/backlog.json` (`backlog.ts`). When asked
 "what's on the backlog", `GET /api/backlog`; mark an item done with
 `PATCH /api/backlog/:id '{"status":"done"}'` once it ships.

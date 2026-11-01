@@ -273,10 +273,12 @@ export function createApp() {
     const doc_date = String(need(req.body.doc_date, "doc_date"));
     if (!Number.isFinite(amount)) throw new Bad("amount must be a number");
     const id = db().transaction(() => {
-      const id = insert("documents", {
+      const fields = {
         type: "Bill", issuer: r.name, doc_date, amount, description: `${r.name}, ${doc_date.slice(0, 7)}`,
         notes: req.body.notes || null, applied_to: `${r.name} amount → ${usd(amount)}`,
-      });
+      };
+      // An uploaded bill waiting to be filed becomes this entry instead of a second one.
+      const id = req.body.document_id ? (update("documents", "id", req.body.document_id, fields), Number(req.body.document_id)) : insert("documents", fields);
       update("recurring", "id", r.id, { amount });
       return id;
     })();

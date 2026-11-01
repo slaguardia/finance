@@ -131,9 +131,13 @@ for Claude Code.
 
 Tools: `get_overview`, `list_accounts`, `get_account_history`, `get_budget`,
 `get_trends`, `get_recent_changes` to read; `log_balance`, `add_bill`,
-`update_bill`, `report_bill_payment`, `add_income`, `update_income` to edit;
-`list_backlog`, `add_backlog_item` for the backlog. Nothing deletes, documents
-stay out, and every edit lands in the Log marked "(via Claude)".
+`update_bill`, `report_bill_payment`, `add_income`, `update_income`,
+`add_account`, `set_balance_breakdown` to edit; `list_documents`,
+`catalog_document`, `mark_document_filed` to file a document the chat was shown
+(upload the original on the Documents page; the chat fills in that entry);
+`list_backlog`, `add_backlog_item` for the backlog. Nothing deletes, stored
+files never leave through it, only entries not yet filed can be changed, and
+every edit lands in the Log marked "(via Claude)".
 
 The edge has to let `/mcp` through without its own login (claude.ai calls it
 from Anthropic's servers), so the key is the only lock there. Only a SHA-256 of

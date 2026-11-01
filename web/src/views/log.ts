@@ -46,8 +46,8 @@ function claudeAccess(keys: AccessKey[]): HTMLElement {
   list.append(keyTable(keys, list));
   return section(h("span", {}, icon("key", 16), " Claude access"),
     h("p", { class: "fn-muted fn-note" },
-      "A key lets a Claude chat read your balances, debts, bills, income and history, make small edits (log a balance, update a bill or income, report a payment) and add to the backlog. " +
-      "It can't delete anything or see documents. Its edits show up below, marked “via Claude”. Revoke a key and it stops working on Claude's next request."),
+      "A key lets a Claude chat read your balances, debts, bills, income and history, make small edits (log a balance, update a bill or income, report a payment, file a document) and add to the backlog. " +
+      "It can't delete anything or open your stored files. Its edits show up below, marked “via Claude”. Revoke a key and it stops working on Claude's next request."),
     list, reveal, h("div", {}, create));
 }
 
