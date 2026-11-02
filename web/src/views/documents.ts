@@ -41,7 +41,7 @@ function clamp(content: string | HTMLElement, full = typeof content === "string"
 }
 
 const isStatement = (d: Doc) => /statement/i.test(d.type ?? "");
-const isTaxForm = (d: Doc) => /\b(W-2|1099|1098|1095|5498)\b|tax form/i.test(d.type ?? "");
+const isTaxForm = (d: Doc) => /\b(W-2|1099|1098|1095|5498|1040)\b|tax (form|return)/i.test(d.type ?? "");
 /** The year a form reports on: the description's leading year ("2025 W-2: …"), else the year before it was issued. */
 const taxYear = (d: Doc) => (d.description ?? "").match(/^(\d{4})\b/)?.[1] ?? String(Number((d.doc_date ?? d.added_at).slice(0, 4)) - 1);
 const monthOf = (d: Doc) => (d.doc_date ?? d.added_at).slice(0, 7);
